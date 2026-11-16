@@ -45,4 +45,5 @@ yarn-error.*
 # others
 .vscode/
 .idea/
+.claude/
 *workspace

@@ -17,6 +17,7 @@ const clientOptions = {
 export function useMqttSensor() {
   const [state, setState] = useState({
     temperature: null,
+    distance: null,
     timestamp: null,
     connectionState: "disconnected",
     error: null,
@@ -53,7 +54,11 @@ export function useMqttSensor() {
 
     client.on("connect", () => {
       setState((prev) => ({ ...prev, connectionState: "connected", error: null }));
-      client.subscribe(MQTT_TOPIC, { qos: 0 }, (err) => {
+      const topicsToSub = [MQTT_TOPIC];
+      if (MQTT_TOPIC.endsWith("/temperature")) {
+        topicsToSub.push(MQTT_TOPIC.replace(/\/temperature$/, "/distance"));
+      }
+      client.subscribe(topicsToSub, { qos: 0 }, (err) => {
         if (err) {
           setState((prev) => ({ ...prev, error: err.message }));
         }
@@ -73,7 +78,14 @@ export function useMqttSensor() {
         const payload = JSON.parse(message.toString());
         setState((prev) => ({
           ...prev,
-          temperature: payload.temperature ?? null,
+          temperature:
+            payload.temperature !== undefined
+              ? Number(payload.temperature)
+              : prev.temperature,
+          distance:
+            payload.distance !== undefined
+              ? Number(payload.distance)
+              : prev.distance,
           timestamp: payload.timestamp ?? new Date().toISOString(),
           error: null,
         }));

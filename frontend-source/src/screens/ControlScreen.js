@@ -150,7 +150,9 @@ export function ControlScreen() {
               >
                 Threshold (°C) <Text style={styles.required}>*</Text>
               </Text>
-              <Text style={styles.helper}>Alert when temperature exceeds this value.</Text>
+              <Text style={styles.helper}>
+                Alert when temperature exceeds this value. Distance reading is also logged during alerts.
+              </Text>
               <TextInput
                 ref={thresholdRef}
                 style={[styles.input, showThresholdError && styles.inputError]}

@@ -1,9 +1,14 @@
 CREATE TABLE IF NOT EXISTS public.sensor_readings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   temperature NUMERIC(6,2) NOT NULL,
+  distance NUMERIC(6,2),
   threshold_value NUMERIC(6,2),
   recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration helper for existing installations
+ALTER TABLE public.sensor_readings 
+  ADD COLUMN IF NOT EXISTS distance NUMERIC(6,2);
 
 CREATE INDEX IF NOT EXISTS sensor_readings_recorded_at_idx
   ON public.sensor_readings (recorded_at DESC);

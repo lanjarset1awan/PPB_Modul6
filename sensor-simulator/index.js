@@ -1,8 +1,9 @@
 import mqtt from "mqtt";
 
 const BROKER_URL = "mqtt://broker.hivemq.com:1883";
-const TOPIC = "ppb/kelXX/iot/temperature";
-const BACKEND_BASE_URL = "http://localhost:5002";
+const TOPIC_TEMP = "ppb/kel16/iot/temperature";
+const TOPIC_DISTANCE = "ppb/kel16/iot/distance";
+const BACKEND_BASE_URL = "http://10.123.128.135:5002";
 const PUBLISH_INTERVAL_MS = 5000;
 
 const clientId = `simulator-${Math.random().toString(16).slice(2)}`;
@@ -38,23 +39,40 @@ async function fetchLatestThreshold() {
 
 async function publishLoop() {
 	let latestThreshold = await fetchLatestThreshold();
+	let counter = 0;
 
 	setInterval(async () => {
+		counter++;
+		// Simulasi Sensor Suhu (20.00°C s/d 35.00°C)
 		const temperature = Number((Math.random() * 15 + 20).toFixed(2));
+		// Simulasi Sensor Jarak / Ultrasonic HC-SR04 (5.0 cm s/d 120.0 cm)
+		const distance = Number((Math.random() * 115 + 5).toFixed(1));
+
+		const timestamp = new Date().toISOString();
 		const payload = JSON.stringify({
 			temperature,
-			timestamp: new Date().toISOString(),
+			distance,
+			timestamp,
 		});
 
-		client.publish(TOPIC, payload, { qos: 0 }, (error) => {
+		// Publish ke topik utama (berisi temperature + distance)
+		client.publish(TOPIC_TEMP, payload, { qos: 0 }, (error) => {
 			if (error) {
-				console.error("Failed to publish temperature", error.message);
+				console.error("Failed to publish telemetry", error.message);
 			} else {
-				console.log(`Published ${payload} to ${TOPIC}`);
+				console.log(`[Sensor] Temp: ${temperature}°C | Jarak: ${distance} cm -> ${TOPIC_TEMP}`);
 			}
 		});
 
-		if (latestThreshold === null || Math.random() < 0.2) {
+		// Publish ke topik khusus distance juga
+		client.publish(
+			TOPIC_DISTANCE,
+			JSON.stringify({ distance, timestamp }),
+			{ qos: 0 }
+		);
+
+		// Perbarui threshold setiap 2 iterasi (~10 detik) atau jika null
+		if (latestThreshold === null || counter % 2 === 0) {
 			latestThreshold = await fetchLatestThreshold();
 		}
 
@@ -65,6 +83,7 @@ async function publishLoop() {
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
 						temperature,
+						distance,
 						threshold_value: latestThreshold,
 					}),
 				});
@@ -75,7 +94,7 @@ async function publishLoop() {
 				}
 
 				console.log(
-					`Saved triggered reading ${temperature}°C (threshold ${latestThreshold}°C)`,
+					`[ALARM TRIGGERED] Saved: ${temperature}°C (Limit: ${latestThreshold}°C), Distance: ${distance} cm`,
 				);
 			} catch (error) {
 				console.error("Failed to save triggered reading:", error.message);

@@ -98,6 +98,7 @@ function StatusChip({ connectionState, hasError, onRetry }) {
 export function MonitoringScreen() {
 	const {
 		temperature,
+		distance,
 		timestamp,
 		connectionState,
 		error: mqttError,
@@ -163,6 +164,38 @@ export function MonitoringScreen() {
 		}
 		return { tone, statusWord, statusColor };
 	}, [temperature, latestThreshold]);
+
+	const distanceProximity = useMemo(() => {
+		if (typeof distance !== "number") return null;
+		if (distance < 20) {
+			return {
+				statusWord: "Terlalu Dekat",
+				color: color.dangerText,
+				bg: color.dangerBg,
+				border: color.dangerBorder,
+				description: "Objek terdeteksi sangat dekat (< 20 cm)!",
+				icon: "alert-circle-outline",
+			};
+		}
+		if (distance <= 50) {
+			return {
+				statusWord: "Mendekat",
+				color: color.warnText,
+				bg: color.warnBg,
+				border: color.warnBorder,
+				description: "Objek terdeteksi dalam jarak menengah (20 - 50 cm).",
+				icon: "warning-outline",
+			};
+		}
+		return {
+			statusWord: "Aman / Jauh",
+			color: color.successText,
+			bg: color.successBg,
+			border: color.successBorder,
+			description: "Area deteksi aman dan bebas rintangan (> 50 cm).",
+			icon: "checkmark-circle-outline",
+		};
+	}, [distance]);
 
 	const freshness = useMemo(() => {
 		if (!Array.isArray(readings) || readings.length === 0) {
@@ -330,6 +363,105 @@ export function MonitoringScreen() {
 					) : null}
 				</Animated.View>
 
+				{/* Distance Sensor Card */}
+				<Animated.View
+					style={styles.card}
+					entering={
+						reduceMotion
+							? FadeIn.duration(150)
+							: FadeInDown.duration(tokens.motion.entering).delay(60)
+					}
+				>
+					<View style={styles.cardTopRow}>
+						<View style={styles.sensorTitleWrap}>
+							<Ionicons name="radio-outline" size={16} color={color.primary} />
+							<Text style={styles.eyebrow}>Live Distance Sensor</Text>
+						</View>
+						{distanceProximity ? (
+							<View
+								style={[
+									styles.distanceStatusBadge,
+									{
+										backgroundColor: distanceProximity.bg,
+										borderColor: distanceProximity.border,
+									},
+								]}
+							>
+								<Ionicons
+									name={distanceProximity.icon}
+									size={14}
+									color={distanceProximity.color}
+								/>
+								<Text
+									style={[
+										styles.distanceStatusText,
+										{ color: distanceProximity.color },
+									]}
+								>
+									{distanceProximity.statusWord}
+								</Text>
+							</View>
+						) : null}
+					</View>
+
+					<View style={styles.distanceStage}>
+						<View style={styles.distanceValueRow}>
+							<Text
+								style={[
+									styles.distanceValueText,
+									{
+										color: distanceProximity
+											? distanceProximity.color
+											: color.text,
+									},
+								]}
+							>
+								{typeof distance === "number" ? distance.toFixed(1) : "--"}
+							</Text>
+							<Text style={styles.distanceUnitText}>cm</Text>
+						</View>
+
+						{/* Visual Distance Level Meter */}
+						<View>
+							<View style={styles.progressBarTrack}>
+								<View
+									style={[
+										styles.progressBarFill,
+										{
+											width: `${
+												typeof distance === "number"
+													? Math.min(100, Math.max(5, (distance / 120) * 100))
+													: 0
+											}%`,
+											backgroundColor: distanceProximity
+												? distanceProximity.color
+												: color.primary,
+										},
+									]}
+								/>
+							</View>
+							<View style={styles.progressLabelsRow}>
+								<Text style={styles.progressLabelText}>0 cm (Dekat)</Text>
+								<Text style={styles.progressLabelText}>50 cm</Text>
+								<Text style={styles.progressLabelText}>120+ cm (Jauh)</Text>
+							</View>
+						</View>
+
+						<View style={styles.metaRow}>
+							<Ionicons
+								name="information-circle-outline"
+								size={15}
+								color={color.text3}
+							/>
+							<Text style={styles.metaText}>
+								{distanceProximity
+									? distanceProximity.description
+									: "Menunggu pembacaan sensor jarak HC-SR04…"}
+							</Text>
+						</View>
+					</View>
+				</Animated.View>
+
 				{apiError && !loading ? (
 					<View
 						style={styles.errorBanner}
@@ -380,23 +512,30 @@ export function MonitoringScreen() {
 						{
 							key: "recorded_at",
 							title: "Timestamp",
-							flex: 1.5,
-							// ponytail: same single-line format as threshold history
+							flex: 1.4,
 							render: (value) =>
 								value ? new Date(value).toLocaleString() : "--",
 						},
 						{
 							key: "temperature",
 							title: "Temp °C",
-							flex: 0.9,
+							flex: 0.8,
 							numeric: true,
 							render: (value) =>
 								typeof value === "number" ? Number(value).toFixed(2) : "--",
 						},
 						{
+							key: "distance",
+							title: "Jarak",
+							flex: 0.8,
+							numeric: true,
+							render: (value) =>
+								typeof value === "number" ? `${Number(value).toFixed(1)} cm` : "--",
+						},
+						{
 							key: "threshold_value",
 							title: "Limit °C",
-							flex: 0.9,
+							flex: 0.8,
 							numeric: true,
 							render: (value) =>
 								typeof value === "number" ? Number(value).toFixed(2) : "--",
@@ -592,5 +731,64 @@ const styles = StyleSheet.create({
 	pressed: {
 		opacity: 0.9,
 		transform: [{ scale: 0.98 }],
+	},
+	sensorTitleWrap: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 6,
+	},
+	distanceStage: {
+		gap: space.md,
+		paddingTop: space.sm,
+	},
+	distanceValueRow: {
+		flexDirection: "row",
+		alignItems: "baseline",
+		gap: 6,
+	},
+	distanceValueText: {
+		fontSize: 32,
+		fontWeight: "700",
+		fontVariant: ["tabular-nums"],
+	},
+	distanceUnitText: {
+		fontSize: 15,
+		fontWeight: "600",
+		color: color.text2,
+	},
+	progressBarTrack: {
+		height: 10,
+		backgroundColor: color.surface2,
+		borderRadius: radius.pill,
+		overflow: "hidden",
+		borderWidth: 1,
+		borderColor: color.border,
+	},
+	progressBarFill: {
+		height: "100%",
+		borderRadius: radius.pill,
+	},
+	progressLabelsRow: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		marginTop: 4,
+	},
+	progressLabelText: {
+		fontSize: 11,
+		color: color.text3,
+		fontWeight: "500",
+	},
+	distanceStatusBadge: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 5,
+		paddingVertical: 4,
+		paddingHorizontal: 8,
+		borderRadius: radius.chip,
+		borderWidth: 1,
+	},
+	distanceStatusText: {
+		fontSize: 12,
+		fontWeight: "600",
 	},
 });
