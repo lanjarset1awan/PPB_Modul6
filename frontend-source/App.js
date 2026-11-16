@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -6,6 +6,8 @@ import { enableScreens } from "react-native-screens";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { MonitoringScreen } from "./src/screens/MonitoringScreen.js";
 import { ControlScreen } from "./src/screens/ControlScreen.js";
+import { ProfileScreen } from "./src/screens/ProfileScreen.js";
+import { CustomSplashScreen } from "./src/components/CustomSplashScreen.js";
 import { assertConfig } from "./src/services/config.js";
 import { tokens } from "./src/theme/tokens.js";
 
@@ -15,6 +17,8 @@ const { color } = tokens;
 enableScreens(true);
 
 export default function App() {
+  const [isSplashDone, setIsSplashDone] = useState(false);
+
   useEffect(() => {
     assertConfig();
   }, []);
@@ -30,6 +34,10 @@ export default function App() {
       primary: color.primary,
     },
   };
+
+  if (!isSplashDone) {
+    return <CustomSplashScreen onFinish={() => setIsSplashDone(true)} />;
+  }
 
   return (
     <SafeAreaProvider>
@@ -62,13 +70,16 @@ export default function App() {
             },
             tabBarHideOnKeyboard: true,
             tabBarIcon: ({ color: iconColor }) => {
-              const iconName = route.name === "Monitoring" ? "pulse" : "options";
+              let iconName = "pulse";
+              if (route.name === "Control") iconName = "options";
+              if (route.name === "Profile") iconName = "person-circle-outline";
               return <Ionicons name={iconName} size={24} color={iconColor} />;
             },
           })}
         >
           <Tab.Screen name="Monitoring" component={MonitoringScreen} />
           <Tab.Screen name="Control" component={ControlScreen} />
+          <Tab.Screen name="Profile" component={ProfileScreen} />
         </Tab.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

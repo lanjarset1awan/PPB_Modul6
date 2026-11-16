@@ -27,7 +27,7 @@ const { color } = tokens;
 
 const DOT_COUNT = 240;
 const HOLE_RADIUS = 78;
-const BASE_SPEED = 0.15;
+const BASE_SPEED = 0.22;
 const TILT = 0.35;
 const TEX = 32;
 
@@ -55,24 +55,50 @@ function projectAll(angle, swell, R, cx, cy) {
   const tilt = TILT + Math.sin(angle * 0.5) * 0.05;
   const cosT = Math.cos(tilt);
   const sinT = Math.sin(tilt);
-  const rr = R * swell;
+  const cosRT = 0.796;
+  const sinRT = 0.605;
+
   for (let i = 0; i < DOT_COUNT; i++) {
-    const p = BASE_PTS[i];
-    const x1 = p[0] * cosA + p[2] * sinA;
-    const z1 = -p[0] * sinA + p[2] * cosA;
-    const y1 = p[1] * cosT - z1 * sinT;
-    const z2 = p[1] * sinT + z1 * cosT;
-    const depth = (z2 + 1) / 2;
-    const s = 2.2 / (2.2 - z2);
-    const sx = cx + x1 * rr * s;
-    const sy = cy + y1 * rr * s;
-    const hx = sx - cx;
-    const hy = sy - cy;
-    const hidden = hx * hx + hy * hy < HOLE_RADIUS * HOLE_RADIUS;
-    const sc = 0.22 * (0.65 + 0.75 * depth) * swell;
-    out[i] = hidden
-      ? [0, 0, -10000, -10000]
-      : [sc, 0, sx - (TEX / 2) * sc, sy - (TEX / 2) * sc];
+    if (i >= 180) {
+      const k = i - 180;
+      const ringAngle = (k / 60) * 2 * Math.PI - angle * 2.2;
+      const ringRadius = R * 1.32 * swell;
+      const rx0 = Math.cos(ringAngle) * ringRadius;
+      const rz0 = Math.sin(ringAngle) * ringRadius;
+      const ry0 = Math.sin(ringAngle * 3 + angle * 2) * 5;
+      const rx = rx0 * cosA + rz0 * sinA;
+      const rz1 = -rx0 * sinA + rz0 * cosA;
+      const ry = ry0 * cosRT - rz1 * sinRT;
+      const rz = ry0 * sinRT + rz1 * cosRT;
+      const normZ = rz / (R * 1.35);
+      const depth = (normZ + 1) / 2;
+      const s = 2.4 / (2.4 - normZ);
+      const sx = cx + rx * s;
+      const sy = cy + ry * s;
+      const sc = 0.26 * (0.65 + 0.6 * depth) * swell;
+      out[i] = [sc, 0, sx - (TEX / 2) * sc, sy - (TEX / 2) * sc];
+    } else {
+      const p = BASE_PTS[i];
+      const wave =
+        0.08 * Math.sin(p[1] * 5 + angle * 3.0) +
+        0.05 * Math.cos(p[0] * 4 + angle * 2.0);
+      const rr = R * (swell + wave);
+      const x1 = p[0] * cosA + p[2] * sinA;
+      const z1 = -p[0] * sinA + p[2] * cosA;
+      const y1 = p[1] * cosT - z1 * sinT;
+      const z2 = p[1] * sinT + z1 * cosT;
+      const depth = (z2 + 1) / 2;
+      const s = 2.2 / (2.2 - z2);
+      const sx = cx + x1 * rr * s;
+      const sy = cy + y1 * rr * s;
+      const hx = sx - cx;
+      const hy = sy - cy;
+      const hidden = hx * hx + hy * hy < HOLE_RADIUS * HOLE_RADIUS;
+      const sc = 0.22 * (0.65 + 0.75 * depth) * swell;
+      out[i] = hidden
+        ? [0, 0, -10000, -10000]
+        : [sc, 0, sx - (TEX / 2) * sc, sy - (TEX / 2) * sc];
+    }
   }
   return out;
 }
@@ -117,15 +143,49 @@ export function TempOrb({
 
   const transforms = useRSXformBuffer(DOT_COUNT, (val, i) => {
     "worklet";
-    const p = BASE_PTS[i];
     const a = angleY.value;
     const cosA = Math.cos(a);
     const sinA = Math.sin(a);
     const tilt = TILT + Math.sin(a * 0.5) * 0.05;
     const cosT = Math.cos(tilt);
     const sinT = Math.sin(tilt);
-    const swell = 1 + 0.04 * intensity.value;
-    const rr = R * swell;
+    const swell = 1 + 0.06 * intensity.value;
+
+    // Bagian 1: Cincin Orbit Planetarium (60 titik partikel terluar)
+    if (i >= 180) {
+      const k = i - 180;
+      // Rotasi orbit lebih cepat dengan arah berlawanan
+      const ringAngle = (k / 60) * 2 * Math.PI - a * 2.2;
+      const ringRadius = R * 1.32 * (swell + 0.03 * Math.sin(a * 3 + k * 0.2));
+      const rx0 = Math.cos(ringAngle) * ringRadius;
+      const rz0 = Math.sin(ringAngle) * ringRadius;
+      const ry0 = Math.sin(ringAngle * 3 + a * 2) * 5;
+
+      // Kemiringan cincin orbit (tilt 45 derajat)
+      const cosRT = 0.796;
+      const sinRT = 0.605;
+      const rx = rx0 * cosA + rz0 * sinA;
+      const rz1 = -rx0 * sinA + rz0 * cosA;
+      const ry = ry0 * cosRT - rz1 * sinRT;
+      const rz = ry0 * sinRT + rz1 * cosRT;
+
+      const normZ = rz / (R * 1.35);
+      const depth = (normZ + 1) / 2;
+      const s = 2.4 / (2.4 - normZ);
+      const sx = cx + rx * s;
+      const sy = cy + ry * s;
+      const sc = 0.26 * (0.65 + 0.6 * depth) * swell;
+      val.set(sc, 0, sx - (TEX / 2) * sc, sy - (TEX / 2) * sc);
+      return;
+    }
+
+    // Bagian 2: Bola Plasma Inti Bergelombang Dinamis (180 titik)
+    const p = BASE_PTS[i];
+    // Distorsi gelombang harmonik berdenyut (harmonic pulse wave)
+    const wave =
+      0.08 * Math.sin(p[1] * 5 + a * 3.0) +
+      0.05 * Math.cos(p[0] * 4 + a * 2.0);
+    const rr = R * (swell + wave);
     const x1 = p[0] * cosA + p[2] * sinA;
     const z1 = -p[0] * sinA + p[2] * cosA;
     const y1 = p[1] * cosT - z1 * sinT;
@@ -197,7 +257,15 @@ export function TempOrb({
 
   const groupOpacity = useDerivedValue(() => 0.7 * (1 - 0.55 * dimSV.value));
 
-  const colors = useMemo(() => new Array(DOT_COUNT).fill(tint), [tint]);
+  const colors = useMemo(() => {
+    return new Array(DOT_COUNT).fill(0).map((_, i) => {
+      // 60 partikel pada cincin orbit planetarium diberikan aksen warna luminous cyan
+      if (i >= 180) {
+        return "#38BDF8";
+      }
+      return tint;
+    });
+  }, [tint]);
 
   return (
     <View style={{ width: size, height: size }} accessible={false}>

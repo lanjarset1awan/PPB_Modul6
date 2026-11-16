@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	Pressable,
 	RefreshControl,
@@ -104,11 +104,30 @@ export function MonitoringScreen() {
 		error: mqttError,
 	} = useMqttSensor();
 	const [readings, setReadings] = useState([]);
+	const [currentPage, setCurrentPage] = useState(1);
+	const PAGE_SIZE = 5;
 	const [latestThreshold, setLatestThreshold] = useState(null);
 	const [loading, setLoading] = useState(false);
 	const [refreshing, setRefreshing] = useState(false);
 	const [apiError, setApiError] = useState(null);
 	const reduceMotion = useReducedMotion();
+
+	const totalPages = useMemo(() => {
+		if (!Array.isArray(readings) || readings.length === 0) return 1;
+		return Math.max(1, Math.ceil(readings.length / PAGE_SIZE));
+	}, [readings]);
+
+	const paginatedReadings = useMemo(() => {
+		if (!Array.isArray(readings)) return [];
+		const startIndex = (currentPage - 1) * PAGE_SIZE;
+		return readings.slice(startIndex, startIndex + PAGE_SIZE);
+	}, [readings, currentPage]);
+
+	useEffect(() => {
+		if (currentPage > totalPages) {
+			setCurrentPage(totalPages);
+		}
+	}, [totalPages, currentPage]);
 
 	const fetchReadings = useCallback(async () => {
 		setLoading(true);
@@ -541,7 +560,7 @@ export function MonitoringScreen() {
 								typeof value === "number" ? Number(value).toFixed(2) : "--",
 						},
 					]}
-					data={readings}
+					data={paginatedReadings}
 					keyExtractor={(item) => item.id}
 					loading={loading && !refreshing}
 					emptyTitle="No readings yet"
@@ -549,6 +568,73 @@ export function MonitoringScreen() {
 					emptyActionLabel="Refresh"
 					onEmptyAction={fetchReadings}
 				/>
+
+				{/* Komponen Navigasi Pagination */}
+				{readings.length > 0 ? (
+					<View style={styles.paginationCard}>
+						<Pressable
+							style={({ pressed }) => [
+								styles.paginationBtn,
+								currentPage <= 1 && styles.paginationBtnDisabled,
+								pressed && currentPage > 1 && styles.pressed,
+							]}
+							onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+							disabled={currentPage <= 1}
+							accessibilityRole="button"
+							accessibilityLabel="Halaman sebelumnya"
+						>
+							<Ionicons
+								name="chevron-back"
+								size={16}
+								color={currentPage <= 1 ? color.text3 : color.primary}
+							/>
+							<Text
+								style={[
+									styles.paginationBtnText,
+									currentPage <= 1 && styles.paginationBtnTextDisabled,
+								]}
+							>
+								Sebelumnya
+							</Text>
+						</Pressable>
+
+						<View style={styles.paginationCenterInfo}>
+							<Text style={styles.paginationPageIndicator}>
+								Halaman <Text style={styles.pageNumberBold}>{currentPage}</Text> dari {totalPages}
+							</Text>
+							<Text style={styles.paginationRangeIndicator}>
+								Menampilkan {Math.min((currentPage - 1) * PAGE_SIZE + 1, readings.length)}-
+								{Math.min(currentPage * PAGE_SIZE, readings.length)} dari {readings.length} data
+							</Text>
+						</View>
+
+						<Pressable
+							style={({ pressed }) => [
+								styles.paginationBtn,
+								currentPage >= totalPages && styles.paginationBtnDisabled,
+								pressed && currentPage < totalPages && styles.pressed,
+							]}
+							onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+							disabled={currentPage >= totalPages}
+							accessibilityRole="button"
+							accessibilityLabel="Halaman berikutnya"
+						>
+							<Text
+								style={[
+									styles.paginationBtnText,
+									currentPage >= totalPages && styles.paginationBtnTextDisabled,
+								]}
+							>
+								Berikutnya
+							</Text>
+							<Ionicons
+								name="chevron-forward"
+								size={16}
+								color={currentPage >= totalPages ? color.text3 : color.primary}
+							/>
+						</Pressable>
+					</View>
+				) : null}
 			</ScrollView>
 		</View>
 	);
@@ -790,5 +876,59 @@ const styles = StyleSheet.create({
 	distanceStatusText: {
 		fontSize: 12,
 		fontWeight: "600",
+	},
+	paginationCard: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		backgroundColor: color.surface,
+		borderRadius: radius.card,
+		borderWidth: 1,
+		borderColor: color.border,
+		padding: space.md,
+		marginTop: -space.sm,
+		boxShadow: shadow.card,
+	},
+	paginationBtn: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 4,
+		backgroundColor: color.surface2,
+		paddingVertical: 8,
+		paddingHorizontal: 12,
+		borderRadius: radius.cta,
+		borderWidth: 1,
+		borderColor: color.border,
+		minHeight: tokens.hit,
+	},
+	paginationBtnDisabled: {
+		opacity: 0.45,
+		backgroundColor: color.bg,
+	},
+	paginationBtnText: {
+		fontSize: 13,
+		fontWeight: "600",
+		color: color.primary,
+	},
+	paginationBtnTextDisabled: {
+		color: color.text3,
+	},
+	paginationCenterInfo: {
+		alignItems: "center",
+		gap: 2,
+	},
+	paginationPageIndicator: {
+		fontSize: 13,
+		fontWeight: "600",
+		color: color.text,
+	},
+	pageNumberBold: {
+		color: color.primary,
+		fontWeight: "700",
+	},
+	paginationRangeIndicator: {
+		fontSize: 11,
+		color: color.text3,
+		fontVariant: ["tabular-nums"],
 	},
 });
