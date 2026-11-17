@@ -98,8 +98,6 @@ export function ProfileScreen() {
                 <Text style={styles.memberName}>{member.name}</Text>
                 <Text style={styles.memberNim}>{member.nim}</Text>
               </View>
-
-              <Ionicons name="chevron-forward" size={16} color={color.text3} />
             </Animated.View>
           ))}
         </View>
