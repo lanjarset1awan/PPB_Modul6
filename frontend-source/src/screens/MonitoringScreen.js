@@ -306,53 +306,55 @@ export function MonitoringScreen() {
 								size={320}
 							/>
 							<View style={styles.orbNumber} pointerEvents="none">
-								<View style={styles.orbNumberRow}>
-									<Text
-										style={[
-											styles.temperatureText,
-											{ color: proximity ? proximity.statusColor : color.text },
-										]}
-										selectable
-									>
-										{tempLabel}
-									</Text>
-									<Text
-										style={[
-											styles.unitText,
-											{
-												color: proximity ? proximity.statusColor : color.text2,
-											},
-										]}
-									>
-										°C
-									</Text>
-								</View>
-								{proximity ? (
-									<Text
-										style={[
-											styles.statusWord,
-											{ color: proximity.statusColor },
-										]}
-									>
-										{proximity.statusWord}
-									</Text>
-								) : null}
-
-								<View style={styles.telemetryBarsRow}>
-									{[8, 14, 10, 16, 7].map((h, bIdx) => (
-										<View
-											key={bIdx}
+								<View style={styles.orbCenterBadge}>
+									<Text style={styles.orbBadgeEyebrow}>SUHU</Text>
+									<View style={styles.orbNumberRow}>
+										<Text
 											style={[
-												styles.telemetryBar,
+												styles.temperatureText,
+												{ color: proximity ? proximity.statusColor : color.text },
+											]}
+											selectable
+										>
+											{tempLabel}
+										</Text>
+										<Text
+											style={[
+												styles.unitText,
 												{
-													height: h,
-													backgroundColor: proximity
-														? proximity.statusColor
-														: color.primary,
+													color: proximity ? proximity.statusColor : color.text2,
 												},
 											]}
-										/>
-									))}
+										>
+											°C
+										</Text>
+									</View>
+									{proximity ? (
+										<View
+											style={[
+												styles.statusPill,
+												{
+													backgroundColor: proximity.statusColor + "14",
+													borderColor: proximity.statusColor + "40",
+												},
+											]}
+										>
+											<View
+												style={[
+													styles.statusDot,
+													{ backgroundColor: proximity.statusColor },
+												]}
+											/>
+											<Text
+												style={[
+													styles.statusWord,
+													{ color: proximity.statusColor },
+												]}
+											>
+												{proximity.statusWord}
+											</Text>
+										</View>
+									) : null}
 								</View>
 							</View>
 						</View>
@@ -769,41 +771,64 @@ const styles = StyleSheet.create({
 		left: 0,
 		right: 0,
 		bottom: 0,
-		flexDirection: "column",
 		alignItems: "center",
 		justifyContent: "center",
+	},
+	orbCenterBadge: {
+		width: 148,
+		height: 148,
+		borderRadius: 74,
+		backgroundColor: "#FFFFFF",
+		alignItems: "center",
+		justifyContent: "center",
+		borderWidth: 1.5,
+		borderColor: "#E2E8F0",
+		boxShadow: "0 6px 20px rgba(0, 0, 0, 0.08)",
+		elevation: 5,
 		gap: 2,
+		paddingHorizontal: 8,
+	},
+	orbBadgeEyebrow: {
+		fontSize: 10,
+		fontWeight: "700",
+		color: color.text3,
+		letterSpacing: 0.8,
+		textTransform: "uppercase",
 	},
 	orbNumberRow: {
 		flexDirection: "row",
 		alignItems: "baseline",
-		gap: 6,
+		gap: 4,
 	},
 	temperatureText: {
-		fontSize: 30,
-		fontWeight: "700",
+		fontSize: 32,
+		fontWeight: "800",
 		color: color.text,
 		fontVariant: ["tabular-nums"],
 	},
 	unitText: {
-		fontSize: 15,
-		fontWeight: "600",
+		fontSize: 16,
+		fontWeight: "700",
 		color: color.text2,
 	},
-	statusWord: {
-		fontSize: 13,
-		fontWeight: "700",
-	},
-	telemetryBarsRow: {
+	statusPill: {
 		flexDirection: "row",
-		alignItems: "flex-end",
-		gap: 3,
-		marginTop: 4,
+		alignItems: "center",
+		gap: 5,
+		paddingVertical: 3,
+		paddingHorizontal: 10,
+		borderRadius: 12,
+		borderWidth: 1,
+		marginTop: 2,
 	},
-	telemetryBar: {
-		width: 3,
-		borderRadius: 2,
-		opacity: 0.85,
+	statusDot: {
+		width: 6,
+		height: 6,
+		borderRadius: 3,
+	},
+	statusWord: {
+		fontSize: 11,
+		fontWeight: "700",
 	},
 	metaBlock: {
 		gap: space.sm,
