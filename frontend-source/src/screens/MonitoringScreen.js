@@ -105,7 +105,7 @@ export function MonitoringScreen() {
 	} = useMqttSensor();
 	const [readings, setReadings] = useState([]);
 	const [currentPage, setCurrentPage] = useState(1);
-	const PAGE_SIZE = 5;
+	const PAGE_SIZE = 10;
 	const [latestThreshold, setLatestThreshold] = useState(null);
 	const [loading, setLoading] = useState(false);
 	const [refreshing, setRefreshing] = useState(false);
@@ -122,6 +122,24 @@ export function MonitoringScreen() {
 		const startIndex = (currentPage - 1) * PAGE_SIZE;
 		return readings.slice(startIndex, startIndex + PAGE_SIZE);
 	}, [readings, currentPage]);
+
+	// Menghasilkan daftar angka halaman untuk deretan tombol
+	const pageNumbers = useMemo(() => {
+		const maxButtons = 5;
+		if (totalPages <= maxButtons) {
+			return Array.from({ length: totalPages }, (_, i) => i + 1);
+		}
+		let start = Math.max(1, currentPage - 2);
+		let end = Math.min(totalPages, start + maxButtons - 1);
+		if (end - start < maxButtons - 1) {
+			start = Math.max(1, end - maxButtons + 1);
+		}
+		const pages = [];
+		for (let i = start; i <= end; i++) {
+			pages.push(i);
+		}
+		return pages;
+	}, [totalPages, currentPage]);
 
 	useEffect(() => {
 		if (currentPage > totalPages) {
@@ -586,70 +604,86 @@ export function MonitoringScreen() {
 					onEmptyAction={fetchReadings}
 				/>
 
-				{/* Komponen Navigasi Pagination */}
+				{/* Komponen Navigasi Pagination Sesuai Desain */}
 				{readings.length > 0 ? (
 					<View style={styles.paginationCard}>
-						<Pressable
-							style={({ pressed }) => [
-								styles.paginationBtn,
-								currentPage <= 1 && styles.paginationBtnDisabled,
-								pressed && currentPage > 1 && styles.pressed,
-							]}
-							onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
-							disabled={currentPage <= 1}
-							accessibilityRole="button"
-							accessibilityLabel="Halaman sebelumnya"
-						>
-							<Ionicons
-								name="chevron-back"
-								size={16}
-								color={currentPage <= 1 ? color.text3 : color.primary}
-							/>
-							<Text
-								style={[
-									styles.paginationBtnText,
-									currentPage <= 1 && styles.paginationBtnTextDisabled,
-								]}
-							>
-								Sebelumnya
-							</Text>
-						</Pressable>
+						<Text style={styles.paginationSummaryText}>
+							Menampilkan {paginatedReadings.length} dari {readings.length} laporan
+						</Text>
 
-						<View style={styles.paginationCenterInfo}>
-							<Text style={styles.paginationPageIndicator}>
-								Halaman <Text style={styles.pageNumberBold}>{currentPage}</Text> dari {totalPages}
-							</Text>
-							<Text style={styles.paginationRangeIndicator}>
-								Menampilkan {Math.min((currentPage - 1) * PAGE_SIZE + 1, readings.length)}-
-								{Math.min(currentPage * PAGE_SIZE, readings.length)} dari {readings.length} data
-							</Text>
+						<View style={styles.paginationButtonsRow}>
+							{/* Tombol Sebelumnya (<) */}
+							<Pressable
+								style={({ pressed }) => [
+									styles.pageBox,
+									currentPage <= 1 && styles.pageBoxDisabled,
+									pressed && currentPage > 1 && styles.pressed,
+								]}
+								onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+								disabled={currentPage <= 1}
+								accessibilityRole="button"
+								accessibilityLabel="Halaman sebelumnya"
+							>
+								<Text
+									style={[
+										styles.pageArrowText,
+										currentPage <= 1 && styles.pageArrowTextDisabled,
+									]}
+								>
+									{"<"}
+								</Text>
+							</Pressable>
+
+							{/* Deretan Tombol Angka Halaman (1, 2, 3, 4...) */}
+							{pageNumbers.map((pageNum) => {
+								const isActive = pageNum === currentPage;
+								return (
+									<Pressable
+										key={pageNum}
+										style={({ pressed }) => [
+											styles.pageBox,
+											isActive && styles.pageBoxActive,
+											pressed && !isActive && styles.pressed,
+										]}
+										onPress={() => setCurrentPage(pageNum)}
+										accessibilityRole="button"
+										accessibilityLabel={`Halaman ${pageNum}`}
+									>
+										<Text
+											style={[
+												styles.pageNumText,
+												isActive && styles.pageNumTextActive,
+											]}
+										>
+											{pageNum}
+										</Text>
+									</Pressable>
+								);
+							})}
+
+							{/* Tombol Berikutnya (>) */}
+							<Pressable
+								style={({ pressed }) => [
+									styles.pageBox,
+									styles.pageBoxNext,
+									currentPage >= totalPages && styles.pageBoxDisabled,
+									pressed && currentPage < totalPages && styles.pressed,
+								]}
+								onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+								disabled={currentPage >= totalPages}
+								accessibilityRole="button"
+								accessibilityLabel="Halaman berikutnya"
+							>
+								<Text
+									style={[
+										styles.pageArrowNextText,
+										currentPage >= totalPages && styles.pageArrowTextDisabled,
+									]}
+								>
+									{">"}
+								</Text>
+							</Pressable>
 						</View>
-
-						<Pressable
-							style={({ pressed }) => [
-								styles.paginationBtn,
-								currentPage >= totalPages && styles.paginationBtnDisabled,
-								pressed && currentPage < totalPages && styles.pressed,
-							]}
-							onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-							disabled={currentPage >= totalPages}
-							accessibilityRole="button"
-							accessibilityLabel="Halaman berikutnya"
-						>
-							<Text
-								style={[
-									styles.paginationBtnText,
-									currentPage >= totalPages && styles.paginationBtnTextDisabled,
-								]}
-							>
-								Berikutnya
-							</Text>
-							<Ionicons
-								name="chevron-forward"
-								size={16}
-								color={currentPage >= totalPages ? color.text3 : color.primary}
-							/>
-						</Pressable>
 					</View>
 				) : null}
 			</ScrollView>
@@ -906,57 +940,77 @@ const styles = StyleSheet.create({
 		fontWeight: "600",
 	},
 	paginationCard: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		backgroundColor: color.surface,
+		backgroundColor: "#FFFFFF",
 		borderRadius: radius.card,
 		borderWidth: 1,
 		borderColor: color.border,
-		padding: space.md,
+		paddingVertical: 18,
+		paddingHorizontal: space.md,
+		alignItems: "center",
+		gap: 12,
 		marginTop: -space.sm,
 		boxShadow: shadow.card,
 	},
-	paginationBtn: {
+	paginationSummaryText: {
+		fontSize: 14,
+		fontWeight: "500",
+		color: "#7E8B9B",
+		textAlign: "center",
+	},
+	paginationButtonsRow: {
 		flexDirection: "row",
 		alignItems: "center",
-		gap: 4,
-		backgroundColor: color.surface2,
-		paddingVertical: 8,
-		paddingHorizontal: 12,
-		borderRadius: radius.cta,
-		borderWidth: 1,
-		borderColor: color.border,
-		minHeight: tokens.hit,
+		justifyContent: "center",
+		gap: 8,
 	},
-	paginationBtnDisabled: {
-		opacity: 0.45,
-		backgroundColor: color.bg,
-	},
-	paginationBtnText: {
-		fontSize: 13,
-		fontWeight: "600",
-		color: color.primary,
-	},
-	paginationBtnTextDisabled: {
-		color: color.text3,
-	},
-	paginationCenterInfo: {
+	pageBox: {
+		width: 40,
+		height: 40,
+		borderRadius: 12,
+		borderWidth: 1.2,
+		borderColor: "#E2E8F0",
+		backgroundColor: "#FFFFFF",
 		alignItems: "center",
-		gap: 2,
+		justifyContent: "center",
 	},
-	paginationPageIndicator: {
-		fontSize: 13,
-		fontWeight: "600",
-		color: color.text,
+	pageBoxActive: {
+		backgroundColor: "#5244F6",
+		borderColor: "#5244F6",
+		shadowColor: "#5244F6",
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.35,
+		shadowRadius: 8,
+		elevation: 6,
 	},
-	pageNumberBold: {
-		color: color.primary,
+	pageBoxNext: {
+		borderColor: "#5244F6",
+		backgroundColor: "#F5F3FF",
+	},
+	pageBoxDisabled: {
+		opacity: 0.35,
+		borderColor: "#E2E8F0",
+		backgroundColor: "#F8FAFC",
+	},
+	pageNumText: {
+		fontSize: 15,
 		fontWeight: "700",
+		color: "#1E293B",
 	},
-	paginationRangeIndicator: {
-		fontSize: 11,
-		color: color.text3,
-		fontVariant: ["tabular-nums"],
+	pageNumTextActive: {
+		color: "#FFFFFF",
+		fontWeight: "800",
+	},
+	pageArrowText: {
+		fontSize: 16,
+		fontWeight: "700",
+		color: "#475569",
+	},
+	pageArrowNextText: {
+		fontSize: 16,
+		fontWeight: "700",
+		color: "#5244F6",
+	},
+	pageArrowTextDisabled: {
+		color: "#94A3B8",
 	},
 });
