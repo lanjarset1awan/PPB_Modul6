@@ -982,17 +982,17 @@ const styles = StyleSheet.create({
 		justifyContent: "center",
 	},
 	pageBoxActive: {
-		backgroundColor: "#5244F6",
-		borderColor: "#5244F6",
-		shadowColor: "#5244F6",
+		backgroundColor: "#2563EB",
+		borderColor: "#2563EB",
+		shadowColor: "#2563EB",
 		shadowOffset: { width: 0, height: 4 },
 		shadowOpacity: 0.35,
 		shadowRadius: 8,
 		elevation: 6,
 	},
 	pageBoxPressed: {
-		borderColor: "#5244F6",
-		backgroundColor: "#F5F3FF",
+		borderColor: "#2563EB",
+		backgroundColor: "#EFF6FF",
 		transform: [{ scale: 0.96 }],
 	},
 	pageBoxDisabled: {
@@ -1010,7 +1010,7 @@ const styles = StyleSheet.create({
 		fontWeight: "800",
 	},
 	pageNumTextPressed: {
-		color: "#5244F6",
+		color: "#2563EB",
 		fontWeight: "800",
 	},
 	pageArrowText: {
@@ -1019,7 +1019,7 @@ const styles = StyleSheet.create({
 		color: "#475569",
 	},
 	pageArrowTextPressed: {
-		color: "#5244F6",
+		color: "#2563EB",
 	},
 	pageArrowTextDisabled: {
 		color: "#94A3B8",
