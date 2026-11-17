@@ -26,23 +26,49 @@ function assertValidTemperature(temperature) {
 
 export const ReadingsModel = {
   async list() {
-    const { rows } = await pool.query(
-      `SELECT id, temperature, distance, threshold_value, recorded_at
-       FROM public.sensor_readings
-       ORDER BY recorded_at DESC
-       LIMIT 100`
-    );
-    return rows.map(normalize);
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, temperature, distance, threshold_value, recorded_at
+         FROM public.sensor_readings
+         ORDER BY recorded_at DESC
+         LIMIT 100`
+      );
+      return rows.map(normalize);
+    } catch (err) {
+      if (err.message && err.message.includes("distance")) {
+        const { rows } = await pool.query(
+          `SELECT id, temperature, threshold_value, recorded_at
+           FROM public.sensor_readings
+           ORDER BY recorded_at DESC
+           LIMIT 100`
+        );
+        return rows.map((r) => normalize({ ...r, distance: null }));
+      }
+      throw err;
+    }
   },
 
   async latest() {
-    const { rows } = await pool.query(
-      `SELECT id, temperature, distance, threshold_value, recorded_at
-       FROM public.sensor_readings
-       ORDER BY recorded_at DESC
-       LIMIT 1`
-    );
-    return normalize(rows[0] ?? null);
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, temperature, distance, threshold_value, recorded_at
+         FROM public.sensor_readings
+         ORDER BY recorded_at DESC
+         LIMIT 1`
+      );
+      return normalize(rows[0] ?? null);
+    } catch (err) {
+      if (err.message && err.message.includes("distance")) {
+        const { rows } = await pool.query(
+          `SELECT id, temperature, threshold_value, recorded_at
+           FROM public.sensor_readings
+           ORDER BY recorded_at DESC
+           LIMIT 1`
+        );
+        return normalize({ ...(rows[0] ?? {}), distance: null });
+      }
+      throw err;
+    }
   },
 
   async create(payload) {
@@ -54,12 +80,36 @@ export const ReadingsModel = {
         ? distance
         : null;
 
-    const { rows } = await pool.query(
-      `INSERT INTO public.sensor_readings (temperature, distance, threshold_value)
-       VALUES ($1, $2, $3)
-       RETURNING id, temperature, distance, threshold_value, recorded_at`,
-      [temperature, parsedDistance, threshold_value ?? null]
-    );
-    return normalize(rows[0]);
+    try {
+      const { rows } = await pool.query(
+        `INSERT INTO public.sensor_readings (temperature, distance, threshold_value)
+         VALUES ($1, $2, $3)
+         RETURNING id, temperature, distance, threshold_value, recorded_at`,
+        [temperature, parsedDistance, threshold_value ?? null]
+      );
+      return normalize(rows[0]);
+    } catch (err) {
+      if (err.message && err.message.includes("distance")) {
+        try {
+          await pool.query("ALTER TABLE public.sensor_readings ADD COLUMN IF NOT EXISTS distance NUMERIC(6,2);");
+          const { rows } = await pool.query(
+            `INSERT INTO public.sensor_readings (temperature, distance, threshold_value)
+             VALUES ($1, $2, $3)
+             RETURNING id, temperature, distance, threshold_value, recorded_at`,
+            [temperature, parsedDistance, threshold_value ?? null]
+          );
+          return normalize(rows[0]);
+        } catch (innerErr) {
+          const { rows } = await pool.query(
+            `INSERT INTO public.sensor_readings (temperature, threshold_value)
+             VALUES ($1, $2)
+             RETURNING id, temperature, threshold_value, recorded_at`,
+            [temperature, threshold_value ?? null]
+          );
+          return normalize(rows[0]);
+        }
+      }
+      throw err;
+    }
   },
 };

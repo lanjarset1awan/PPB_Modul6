@@ -18,6 +18,7 @@ const TEAM_MEMBERS = [
     name: "Lanjar Setiawan",
     nim: "21120122140134",
     role: "Lead Mobile & IoT Integration",
+    avatarBg: "#EFF6FF",
     avatarColor: "#2563EB",
     initials: "LS",
   },
@@ -25,6 +26,7 @@ const TEAM_MEMBERS = [
     name: "Anggota Kelompok 16",
     nim: "21120122140xxx",
     role: "Backend & Database Specialist",
+    avatarBg: "#ECFDF5",
     avatarColor: "#059669",
     initials: "AK",
   },
@@ -40,7 +42,6 @@ const SYSTEM_SPECS = [
 ];
 
 export function ProfileScreen() {
-  const [copied, setCopied] = useState(false);
   const GITHUB_REPO_URL = "https://github.com/lanjarset1awan/PPB_Modul6";
 
   const handleOpenGitHub = () => {
@@ -55,14 +56,14 @@ export function ProfileScreen() {
         contentContainerStyle={styles.container}
         contentInsetAdjustmentBehavior="automatic"
       >
-        {/* Header Kelompok Banner */}
+        {/* Header Kelompok Banner - Clean White Aesthetic */}
         <Animated.View
           style={styles.headerCard}
           entering={FadeInDown.duration(tokens.motion.entering)}
         >
           <View style={styles.headerTop}>
             <View style={styles.groupIconCircle}>
-              <Ionicons name="people" size={32} color="#FFFFFF" />
+              <Ionicons name="people" size={28} color="#2563EB" />
             </View>
             <View style={styles.groupBadge}>
               <Text style={styles.groupBadgeText}>Kelompok 16</Text>
@@ -78,14 +79,15 @@ export function ProfileScreen() {
 
           <View style={styles.headerMetaRow}>
             <View style={styles.metaCol}>
-              <Text style={styles.metaLabel}>Fakultas / Jurusan</Text>
+              <Text style={styles.metaLabel}>Fakultas / Program Studi</Text>
               <Text style={styles.metaVal}>Teknik Komputer</Text>
             </View>
             <View style={styles.metaCol}>
-              <Text style={styles.metaLabel}>Status Proyek</Text>
-              <Text style={[styles.metaVal, { color: color.successText }]}>
-                ● Aktif & Terhubung
-              </Text>
+              <Text style={styles.metaLabel}>Status Sistem</Text>
+              <View style={styles.statusPillActive}>
+                <View style={styles.greenPulseDot} />
+                <Text style={styles.statusTextActive}>Online & Terhubung</Text>
+              </View>
             </View>
           </View>
         </Animated.View>
@@ -106,10 +108,12 @@ export function ProfileScreen() {
               <View
                 style={[
                   styles.memberAvatar,
-                  { backgroundColor: member.avatarColor },
+                  { backgroundColor: member.avatarBg },
                 ]}
               >
-                <Text style={styles.avatarText}>{member.initials}</Text>
+                <Text style={[styles.avatarText, { color: member.avatarColor }]}>
+                  {member.initials}
+                </Text>
               </View>
 
               <View style={styles.memberInfo}>
@@ -126,7 +130,7 @@ export function ProfileScreen() {
         {/* Section Spesifikasi IoT */}
         <View style={styles.sectionHeader}>
           <Ionicons name="hardware-chip-outline" size={18} color={color.text} />
-          <Text style={styles.sectionTitle}>Spesifikasi Sistem IoT</Text>
+          <Text style={styles.sectionTitle}>Spesifikasi Arsitektur Sistem</Text>
         </View>
 
         <View style={styles.specsCard}>
@@ -158,7 +162,7 @@ export function ProfileScreen() {
         <View style={styles.githubCard}>
           <View style={styles.githubInfoRow}>
             <View style={styles.githubIconBox}>
-              <Ionicons name="logo-github" size={26} color="#FFFFFF" />
+              <Ionicons name="logo-github" size={24} color="#0F172A" />
             </View>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={styles.repoName}>lanjarset1awan/PPB_Modul6</Text>
@@ -197,8 +201,10 @@ const styles = StyleSheet.create({
     gap: space.lg,
   },
   headerCard: {
-    backgroundColor: "#0F172A",
+    backgroundColor: "#FFFFFF",
     borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: color.border,
     padding: space.xl,
     gap: space.md,
     boxShadow: shadow.card,
@@ -209,45 +215,48 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   groupIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: color.primary,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
     alignItems: "center",
     justifyContent: "center",
   },
   groupBadge: {
-    backgroundColor: "rgba(59, 130, 246, 0.2)",
-    paddingVertical: 6,
+    backgroundColor: "#EFF6FF",
+    paddingVertical: 5,
     paddingHorizontal: 12,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "rgba(96, 165, 250, 0.35)",
+    borderColor: "#BFDBFE",
   },
   groupBadgeText: {
-    color: "#93C5FD",
+    color: "#1D4ED8",
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: 12,
   },
   groupTitle: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: "#0F172A",
     letterSpacing: -0.5,
   },
   groupSubtitle: {
     fontSize: 14,
-    color: "#94A3B8",
+    color: "#475569",
     lineHeight: 20,
   },
   divider: {
     height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "#F1F5F9",
     marginVertical: space.xs,
   },
   headerMetaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
   },
   metaCol: {
     gap: 4,
@@ -261,7 +270,29 @@ const styles = StyleSheet.create({
   metaVal: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#F1F5F9",
+    color: "#0F172A",
+  },
+  statusPillActive: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#DCFCE7",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+  },
+  greenPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#15803D",
+  },
+  statusTextActive: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#15803D",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -280,7 +311,7 @@ const styles = StyleSheet.create({
   memberCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: color.surface,
+    backgroundColor: "#FFFFFF",
     padding: space.lg,
     borderRadius: radius.card,
     borderWidth: 1,
@@ -292,11 +323,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
+    borderWidth: 1,
+    borderColor: color.border,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
-    color: "#FFFFFF",
     fontWeight: "800",
     fontSize: 16,
   },
@@ -316,7 +348,9 @@ const styles = StyleSheet.create({
   },
   roleChip: {
     alignSelf: "flex-start",
-    backgroundColor: color.surface2,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: radius.pill,
@@ -325,10 +359,10 @@ const styles = StyleSheet.create({
   roleText: {
     fontSize: 11,
     fontWeight: "600",
-    color: color.text2,
+    color: "#475569",
   },
   specsCard: {
-    backgroundColor: color.surface,
+    backgroundColor: "#FFFFFF",
     borderRadius: radius.card,
     borderWidth: 1,
     borderColor: color.border,
@@ -340,7 +374,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: color.border,
+    borderBottomColor: "#F1F5F9",
     gap: space.md,
   },
   specRowLast: {
@@ -350,7 +384,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(37, 99, 235, 0.08)",
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -369,7 +403,7 @@ const styles = StyleSheet.create({
     color: color.text,
   },
   githubCard: {
-    backgroundColor: color.surface,
+    backgroundColor: "#FFFFFF",
     borderRadius: radius.card,
     borderWidth: 1,
     borderColor: color.border,
@@ -386,7 +420,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#181717",
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
   },

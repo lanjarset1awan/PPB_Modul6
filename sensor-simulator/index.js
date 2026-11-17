@@ -3,7 +3,7 @@ import mqtt from "mqtt";
 const BROKER_URL = "mqtt://broker.hivemq.com:1883";
 const TOPIC_TEMP = "ppb/kel16/iot/temperature";
 const TOPIC_DISTANCE = "ppb/kel16/iot/distance";
-const BACKEND_BASE_URL = "http://10.123.128.135:5002";
+const BACKEND_BASE_URL = "http://10.34.2.135:5002";
 const PUBLISH_INTERVAL_MS = 5000;
 
 const clientId = `simulator-${Math.random().toString(16).slice(2)}`;
@@ -25,16 +25,46 @@ client.on("error", (error) => {
 	console.error("MQTT error", error.message);
 });
 
-async function fetchLatestThreshold() {
-	try {
-		const response = await fetch(`${BACKEND_BASE_URL}/api/thresholds/latest`);
-		if (!response.ok) throw new Error(`HTTP ${response.status}`);
-		const data = await response.json();
-		return data?.value ?? null;
-	} catch (error) {
-		console.error("Failed to fetch threshold:", error.message);
-		return null;
+async function postReadingToBackend(payload) {
+	const urls = [
+		`${BACKEND_BASE_URL}/api/readings`,
+		"http://localhost:5002/api/readings",
+	];
+
+	for (const url of urls) {
+		try {
+			const response = await fetch(url, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(payload),
+			});
+			if (response.ok) return true;
+		} catch {
+			// coba fallback url berikutnya
+		}
 	}
+	return false;
+}
+
+async function fetchLatestThreshold() {
+	const urls = [
+		`${BACKEND_BASE_URL}/api/thresholds/latest`,
+		"http://localhost:5002/api/thresholds/latest",
+	];
+
+	for (const url of urls) {
+		try {
+			const response = await fetch(url);
+			if (response.ok) {
+				const data = await response.json();
+				return data?.value ?? null;
+			}
+		} catch {
+			// coba fallback url berikutnya
+		}
+	}
+	console.error("Gagal mengambil threshold dari backend (remote & localhost unreachable).");
+	return null;
 }
 
 async function publishLoop() {
@@ -77,27 +107,18 @@ async function publishLoop() {
 		}
 
 		if (typeof latestThreshold === "number" && temperature >= latestThreshold) {
-			try {
-				const response = await fetch(`${BACKEND_BASE_URL}/api/readings`, {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						temperature,
-						distance,
-						threshold_value: latestThreshold,
-					}),
-				});
+			const success = await postReadingToBackend({
+				temperature,
+				distance,
+				threshold_value: latestThreshold,
+			});
 
-				if (!response.ok) {
-					const text = await response.text();
-					throw new Error(`HTTP ${response.status}: ${text}`);
-				}
-
+			if (success) {
 				console.log(
 					`[ALARM TRIGGERED] Saved: ${temperature}°C (Limit: ${latestThreshold}°C), Distance: ${distance} cm`,
 				);
-			} catch (error) {
-				console.error("Failed to save triggered reading:", error.message);
+			} else {
+				console.error("Failed to save triggered reading to backend.");
 			}
 		}
 	}, PUBLISH_INTERVAL_MS);

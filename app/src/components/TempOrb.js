@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { View } from "react-native";
+import { View, StyleSheet } from "react-native";
 import {
   Atlas,
   Canvas,
@@ -12,115 +12,52 @@ import {
   usePictureAsTexture,
 } from "react-native-skia";
 import { useIsFocused } from "@react-navigation/native";
-import {
+import Animated, {
   useDerivedValue,
   useFrameCallback,
   useReducedMotion,
   useSharedValue,
   withSequence,
   withTiming,
+  withRepeat,
+  Easing,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { tokens } from "../theme/tokens.js";
 
 const { color } = tokens;
 
-const DOT_COUNT = 240;
-const HOLE_RADIUS = 78;
-const BASE_SPEED = 0.22;
-const TILT = 0.35;
+// Total partikel dial & radar (Bukan sphere, melainkan 2D Radar Telemetry Dial Gauge)
+const OUTER_TICKS = 60; // 60 titik lingkar skala luar (dial gauge scale)
+const INNER_RING = 40;  // 40 titik ring radar konsentris tengah
+const RADAR_SWEEP = 18; // 18 titik ekor berkas radar scanner
+const CARDINAL_BEACONS = 4; // 4 beacon kuadran (N, E, S, W)
+const TOTAL_DOTS = OUTER_TICKS + INNER_RING + RADAR_SWEEP + CARDINAL_BEACONS; // 122 partikel
+
 const TEX = 32;
-
-// Fibonacci sphere: deterministic, maximally uniform dot globe.
-// y goes 1 → -1, golden-angle step per point (canonical formula).
-function fibonacciSphere(n) {
-  const pts = new Array(n);
-  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-  for (let i = 0; i < n; i++) {
-    const y = 1 - (i / (n - 1)) * 2;
-    const r = Math.sqrt(Math.max(0, 1 - y * y));
-    const theta = goldenAngle * i;
-    pts[i] = [Math.cos(theta) * r, y, Math.sin(theta) * r];
-  }
-  return pts;
-}
-
-const BASE_PTS = fibonacciSphere(DOT_COUNT);
-
-// Plain-JS projection shared by the mount precompute (no runtime needed).
-function projectAll(angle, swell, R, cx, cy) {
-  const out = new Array(DOT_COUNT);
-  const cosA = Math.cos(angle);
-  const sinA = Math.sin(angle);
-  const tilt = TILT + Math.sin(angle * 0.5) * 0.05;
-  const cosT = Math.cos(tilt);
-  const sinT = Math.sin(tilt);
-  const cosRT = 0.796;
-  const sinRT = 0.605;
-
-  for (let i = 0; i < DOT_COUNT; i++) {
-    if (i >= 180) {
-      const k = i - 180;
-      const ringAngle = (k / 60) * 2 * Math.PI - angle * 2.2;
-      const ringRadius = R * 1.32 * swell;
-      const rx0 = Math.cos(ringAngle) * ringRadius;
-      const rz0 = Math.sin(ringAngle) * ringRadius;
-      const ry0 = Math.sin(ringAngle * 3 + angle * 2) * 5;
-      const rx = rx0 * cosA + rz0 * sinA;
-      const rz1 = -rx0 * sinA + rz0 * cosA;
-      const ry = ry0 * cosRT - rz1 * sinRT;
-      const rz = ry0 * sinRT + rz1 * cosRT;
-      const normZ = rz / (R * 1.35);
-      const depth = (normZ + 1) / 2;
-      const s = 2.4 / (2.4 - normZ);
-      const sx = cx + rx * s;
-      const sy = cy + ry * s;
-      const sc = 0.26 * (0.65 + 0.6 * depth) * swell;
-      out[i] = [sc, 0, sx - (TEX / 2) * sc, sy - (TEX / 2) * sc];
-    } else {
-      const p = BASE_PTS[i];
-      const wave =
-        0.08 * Math.sin(p[1] * 5 + angle * 3.0) +
-        0.05 * Math.cos(p[0] * 4 + angle * 2.0);
-      const rr = R * (swell + wave);
-      const x1 = p[0] * cosA + p[2] * sinA;
-      const z1 = -p[0] * sinA + p[2] * cosA;
-      const y1 = p[1] * cosT - z1 * sinT;
-      const z2 = p[1] * sinT + z1 * cosT;
-      const depth = (z2 + 1) / 2;
-      const s = 2.2 / (2.2 - z2);
-      const sx = cx + x1 * rr * s;
-      const sy = cy + y1 * rr * s;
-      const hx = sx - cx;
-      const hy = sy - cy;
-      const hidden = hx * hx + hy * hy < HOLE_RADIUS * HOLE_RADIUS;
-      const sc = 0.22 * (0.65 + 0.75 * depth) * swell;
-      out[i] = hidden
-        ? [0, 0, -10000, -10000]
-        : [sc, 0, sx - (TEX / 2) * sc, sy - (TEX / 2) * sc];
-    }
-  }
-  return out;
-}
+const BASE_SWEEP_SPEED = 1.8; // Kecepatan rotasi radar sweep (rad/detik)
 
 export function TempOrb({
-  tint = color.text,
+  tint = color.primary,
   beatKey = 0,
-  size = 200,
+  size = 320,
   dimmed = false,
 }) {
   const reduceMotion = useReducedMotion();
   const focused = useIsFocused();
-  const angleY = useSharedValue(0.6);
-  const spinBoost = useSharedValue(0);
+  const sweepAngle = useSharedValue(0);
+  const ringRotate = useSharedValue(0);
+  const pulseScale = useSharedValue(1);
   const intensity = useSharedValue(0);
   const dimSV = useSharedValue(dimmed ? 1 : 0);
   const firstBeat = useRef(true);
 
-  const R = (size * 0.8) / 2;
   const cx = size / 2;
   const cy = size / 2;
+  const R_OUTER = size * 0.44; // Skala luar dial (~140px)
+  const R_INNER = size * 0.36; // Ring konsentris radar (~115px)
 
+  // Tekstur titik lingkaran Skia dengan anti-aliasing tinggi
   const dotPicture = useMemo(() => {
     try {
       const recorder = Skia.PictureRecorder();
@@ -134,93 +71,73 @@ export function TempOrb({
       return null;
     }
   }, []);
+
   const dotImg = usePictureAsTexture(dotPicture, { width: TEX, height: TEX });
 
   const sprites = useMemo(
-    () => new Array(DOT_COUNT).fill(0).map(() => rect(0, 0, TEX, TEX)),
+    () => new Array(TOTAL_DOTS).fill(0).map(() => rect(0, 0, TEX, TEX)),
     []
   );
 
-  const transforms = useRSXformBuffer(DOT_COUNT, (val, i) => {
+  // Buffer transformasi koordinat 2D Radar Telemetry Dial
+  const transforms = useRSXformBuffer(TOTAL_DOTS, (val, i) => {
     "worklet";
-    const a = angleY.value;
-    const cosA = Math.cos(a);
-    const sinA = Math.sin(a);
-    const tilt = TILT + Math.sin(a * 0.5) * 0.05;
-    const cosT = Math.cos(tilt);
-    const sinT = Math.sin(tilt);
-    const swell = 1 + 0.06 * intensity.value;
+    const sweep = sweepAngle.value;
+    const rot = ringRotate.value;
+    const swell = pulseScale.value;
 
-    // Bagian 1: Cincin Orbit Planetarium (60 titik partikel terluar)
-    if (i >= 180) {
-      const k = i - 180;
-      // Rotasi orbit lebih cepat dengan arah berlawanan
-      const ringAngle = (k / 60) * 2 * Math.PI - a * 2.2;
-      const ringRadius = R * 1.32 * (swell + 0.03 * Math.sin(a * 3 + k * 0.2));
-      const rx0 = Math.cos(ringAngle) * ringRadius;
-      const rz0 = Math.sin(ringAngle) * ringRadius;
-      const ry0 = Math.sin(ringAngle * 3 + a * 2) * 5;
-
-      // Kemiringan cincin orbit (tilt 45 derajat)
-      const cosRT = 0.796;
-      const sinRT = 0.605;
-      const rx = rx0 * cosA + rz0 * sinA;
-      const rz1 = -rx0 * sinA + rz0 * cosA;
-      const ry = ry0 * cosRT - rz1 * sinRT;
-      const rz = ry0 * sinRT + rz1 * cosRT;
-
-      const normZ = rz / (R * 1.35);
-      const depth = (normZ + 1) / 2;
-      const s = 2.4 / (2.4 - normZ);
-      const sx = cx + rx * s;
-      const sy = cy + ry * s;
-      const sc = 0.26 * (0.65 + 0.6 * depth) * swell;
-      val.set(sc, 0, sx - (TEX / 2) * sc, sy - (TEX / 2) * sc);
+    // 1. Skala Luar Dial (Outer Gauge Dial Ticks) -> i: 0 s/d 59
+    if (i < OUTER_TICKS) {
+      const theta = (i / OUTER_TICKS) * 2 * Math.PI + rot * 0.15;
+      const isMajor = i % 5 === 0;
+      const r = R_OUTER * (isMajor ? swell * 1.02 : swell);
+      const x = cx + Math.cos(theta) * r;
+      const y = cy + Math.sin(theta) * r;
+      const sc = isMajor ? 0.24 : 0.14;
+      val.set(sc, 0, x - (TEX / 2) * sc, y - (TEX / 2) * sc);
       return;
     }
 
-    // Bagian 2: Bola Plasma Inti Bergelombang Dinamis (180 titik)
-    const p = BASE_PTS[i];
-    // Distorsi gelombang harmonik berdenyut (harmonic pulse wave)
-    const wave =
-      0.08 * Math.sin(p[1] * 5 + a * 3.0) +
-      0.05 * Math.cos(p[0] * 4 + a * 2.0);
-    const rr = R * (swell + wave);
-    const x1 = p[0] * cosA + p[2] * sinA;
-    const z1 = -p[0] * sinA + p[2] * cosA;
-    const y1 = p[1] * cosT - z1 * sinT;
-    const z2 = p[1] * sinT + z1 * cosT;
-    const depth = (z2 + 1) / 2;
-    const s = 2.2 / (2.2 - z2);
-    const sx = cx + x1 * rr * s;
-    const sy = cy + y1 * rr * s;
-    const hx = sx - cx;
-    const hy = sy - cy;
-    if (hx * hx + hy * hy < HOLE_RADIUS * HOLE_RADIUS) {
-      val.set(0, 0, -10000, -10000);
+    // 2. Ring Konsentris Radar Tengah -> i: 60 s/d 99
+    if (i < OUTER_TICKS + INNER_RING) {
+      const k = i - OUTER_TICKS;
+      const theta = (k / INNER_RING) * 2 * Math.PI - rot * 0.35;
+      const r = R_INNER * swell;
+      const x = cx + Math.cos(theta) * r;
+      const y = cy + Math.sin(theta) * r;
+      const sc = k % 4 === 0 ? 0.20 : 0.12;
+      val.set(sc, 0, x - (TEX / 2) * sc, y - (TEX / 2) * sc);
       return;
     }
-    const sc = 0.22 * (0.65 + 0.75 * depth) * swell;
-    val.set(sc, 0, sx - (TEX / 2) * sc, sy - (TEX / 2) * sc);
+
+    // 3. Berkas Sapuan Radar (Radar Sweep Scanner Beam) -> i: 100 s/d 117
+    if (i < OUTER_TICKS + INNER_RING + RADAR_SWEEP) {
+      const k = i - (OUTER_TICKS + INNER_RING);
+      // Ekor berkas menyusut secara bertingkat di belakang sweepAngle
+      const trailAngle = sweep - (k * 0.04);
+      const trailRadius = (R_INNER + (R_OUTER - R_INNER) * (k / RADAR_SWEEP)) * swell;
+      const x = cx + Math.cos(trailAngle) * trailRadius;
+      const y = cy + Math.sin(trailAngle) * trailRadius;
+      const sc = 0.28 * (1 - (k / RADAR_SWEEP) * 0.65);
+      val.set(sc, 0, x - (TEX / 2) * sc, y - (TEX / 2) * sc);
+      return;
+    }
+
+    // 4. Empat Beacon Kuadran Utama (North, East, South, West) -> i: 118 s/d 121
+    const bIdx = i - (OUTER_TICKS + INNER_RING + RADAR_SWEEP);
+    const bTheta = (bIdx / CARDINAL_BEACONS) * 2 * Math.PI + rot * 0.05;
+    const bR = (R_OUTER + 12) * swell;
+    const bx = cx + Math.cos(bTheta) * bR;
+    const by = cy + Math.sin(bTheta) * bR;
+    const bSc = 0.26 + 0.08 * Math.sin(sweep * 3 + bIdx);
+    val.set(bSc, 0, bx - (TEX / 2) * bSc, by - (TEX / 2) * bSc);
   });
-
-  // First-frame insurance: correct globe even before the first mapper pass.
-  useEffect(() => {
-    try {
-      const initial = projectAll(0.6, 1, R, cx, cy);
-      transforms.value = transforms.value.map((slot, i) => {
-        slot.set(initial[i][0], initial[i][1], initial[i][2], initial[i][3]);
-        return slot;
-      });
-    } catch {
-      // buffer write unsupported — mapper pass will fill it instead
-    }
-  }, [transforms, R, cx, cy]);
 
   useEffect(() => {
     dimSV.set(withTiming(dimmed ? 1 : 0, { duration: 400 }));
   }, [dimmed, dimSV]);
 
+  // Efek denyut gelombang saat data sensor baru tiba (beat)
   useEffect(() => {
     if (firstBeat.current) {
       firstBeat.current = false;
@@ -228,47 +145,58 @@ export function TempOrb({
     }
     if (!beatKey || dimmed || reduceMotion) return;
     intensity.set(0);
-    intensity.set(
+    pulseScale.set(
       withSequence(
-        withTiming(1, { duration: 140 }),
-        withTiming(0.35, { duration: 180 }),
-        withTiming(0.7, { duration: 120 }),
-        withTiming(0, { duration: 300 })
+        withTiming(1.08, { duration: 150, easing: Easing.out(Easing.ease) }),
+        withTiming(0.96, { duration: 180 }),
+        withTiming(1.03, { duration: 140 }),
+        withTiming(1.0, { duration: 250 })
       )
     );
-    spinBoost.set(2.4);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {
-      // haptics unsupported — visual beat still plays
+      // Haptics fallback
     }
-  }, [beatKey, dimmed, reduceMotion, intensity, spinBoost]);
+  }, [beatKey, dimmed, reduceMotion, pulseScale, intensity]);
 
+  // Frame Loop Skia/Reanimated: Menggerakkan sapuan radar dan ring dial
   const frame = useFrameCallback((info) => {
     "worklet";
     const dt = Math.min(0.05, (info.timeSincePreviousFrame ?? 16) / 1000);
-    spinBoost.value *= Math.pow(0.02, dt);
-    angleY.value += dt * (BASE_SPEED + spinBoost.value);
+    sweepAngle.value += dt * BASE_SWEEP_SPEED;
+    ringRotate.value += dt * 0.45;
   });
 
   useEffect(() => {
     frame.setActive(focused && !reduceMotion && !dimmed);
   }, [focused, reduceMotion, dimmed, frame]);
 
-  const groupOpacity = useDerivedValue(() => 0.7 * (1 - 0.55 * dimSV.value));
+  const groupOpacity = useDerivedValue(() => 0.85 * (1 - 0.5 * dimSV.value));
 
+  // Pewarnaan partikel dial & radar
   const colors = useMemo(() => {
-    return new Array(DOT_COUNT).fill(0).map((_, i) => {
-      // 60 partikel pada cincin orbit planetarium diberikan aksen warna luminous cyan
-      if (i >= 180) {
-        return "#38BDF8";
+    return new Array(TOTAL_DOTS).fill(0).map((_, i) => {
+      // Skala dial luar: mengikuti status tint
+      if (i < OUTER_TICKS) {
+        return i % 5 === 0 ? tint : "rgba(100, 116, 139, 0.45)";
       }
-      return tint;
+      // Ring tengah: warna aksen cyan/sky
+      if (i < OUTER_TICKS + INNER_RING) {
+        return "rgba(56, 189, 248, 0.6)";
+      }
+      // Berkas sapuan radar: warna terang bercahaya
+      if (i < OUTER_TICKS + INNER_RING + RADAR_SWEEP) {
+        return tint;
+      }
+      // Beacon kuadran luar: cyan cerah
+      return "#0284C7";
     });
   }, [tint]);
 
   return (
     <View style={{ width: size, height: size }} accessible={false}>
+      {/* Skia Canvas Rendering untuk Radar Telemetry Dial Gauge */}
       <Canvas style={{ width: size, height: size }}>
         <Group opacity={groupOpacity}>
           <Atlas
@@ -284,3 +212,6 @@ export function TempOrb({
     </View>
   );
 }
+
+// Alias untuk fleksibilitas impor
+export const LiveSensorGauge = TempOrb;

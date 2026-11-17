@@ -319,6 +319,23 @@ export function MonitoringScreen() {
 										{proximity.statusWord}
 									</Text>
 								) : null}
+
+								<View style={styles.telemetryBarsRow}>
+									{[8, 14, 10, 16, 7].map((h, bIdx) => (
+										<View
+											key={bIdx}
+											style={[
+												styles.telemetryBar,
+												{
+													height: h,
+													backgroundColor: proximity
+														? proximity.statusColor
+														: color.primary,
+												},
+											]}
+										/>
+									))}
+								</View>
 							</View>
 						</View>
 					</View>
@@ -734,6 +751,17 @@ const styles = StyleSheet.create({
 	statusWord: {
 		fontSize: 13,
 		fontWeight: "700",
+	},
+	telemetryBarsRow: {
+		flexDirection: "row",
+		alignItems: "flex-end",
+		gap: 3,
+		marginTop: 4,
+	},
+	telemetryBar: {
+		width: 3,
+		borderRadius: 2,
+		opacity: 0.85,
 	},
 	metaBlock: {
 		gap: space.sm,
