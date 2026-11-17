@@ -297,7 +297,8 @@ export function MonitoringScreen() {
 					>
 						<View style={styles.orbWrap}>
 							<TempOrb
-								tint={proximity ? proximity.statusColor : color.text}
+								temperature={temperature}
+								tint={proximity ? proximity.statusColor : color.primary}
 								beatKey={beatKey}
 								dimmed={
 									connectionState !== "connected" &&
@@ -306,8 +307,7 @@ export function MonitoringScreen() {
 								size={320}
 							/>
 							<View style={styles.orbNumber} pointerEvents="none">
-								<View style={styles.orbCenterBadge}>
-									<Text style={styles.orbBadgeEyebrow}>SUHU</Text>
+								<View style={styles.centerPodCircle}>
 									<View style={styles.orbNumberRow}>
 										<Text
 											style={[
@@ -330,31 +330,32 @@ export function MonitoringScreen() {
 										</Text>
 									</View>
 									{proximity ? (
-										<View
+										<Text
 											style={[
-												styles.statusPill,
-												{
-													backgroundColor: proximity.statusColor + "14",
-													borderColor: proximity.statusColor + "40",
-												},
+												styles.statusWord,
+												{ color: proximity.statusColor },
 											]}
 										>
+											{proximity.statusWord}
+										</Text>
+									) : null}
+
+									<View style={styles.telemetryBarsRow}>
+										{[8, 14, 10, 16, 7].map((h, bIdx) => (
 											<View
+												key={bIdx}
 												style={[
-													styles.statusDot,
-													{ backgroundColor: proximity.statusColor },
+													styles.telemetryBar,
+													{
+														height: h,
+														backgroundColor: proximity
+															? proximity.statusColor
+															: color.primary,
+													},
 												]}
 											/>
-											<Text
-												style={[
-													styles.statusWord,
-													{ color: proximity.statusColor },
-												]}
-											>
-												{proximity.statusWord}
-											</Text>
-										</View>
-									) : null}
+										))}
+									</View>
 								</View>
 							</View>
 						</View>
@@ -771,64 +772,57 @@ const styles = StyleSheet.create({
 		left: 0,
 		right: 0,
 		bottom: 0,
+		flexDirection: "column",
 		alignItems: "center",
 		justifyContent: "center",
+		zIndex: 20,
 	},
-	orbCenterBadge: {
-		width: 148,
-		height: 148,
-		borderRadius: 74,
+	centerPodCircle: {
+		width: 140,
+		height: 140,
+		borderRadius: 70,
 		backgroundColor: "#FFFFFF",
 		alignItems: "center",
 		justifyContent: "center",
 		borderWidth: 1.5,
 		borderColor: "#E2E8F0",
-		boxShadow: "0 6px 20px rgba(0, 0, 0, 0.08)",
-		elevation: 5,
+		shadowColor: "#0F172A",
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.08,
+		shadowRadius: 10,
+		elevation: 4,
 		gap: 2,
-		paddingHorizontal: 8,
-	},
-	orbBadgeEyebrow: {
-		fontSize: 10,
-		fontWeight: "700",
-		color: color.text3,
-		letterSpacing: 0.8,
-		textTransform: "uppercase",
 	},
 	orbNumberRow: {
 		flexDirection: "row",
 		alignItems: "baseline",
-		gap: 4,
+		gap: 6,
 	},
 	temperatureText: {
-		fontSize: 32,
-		fontWeight: "800",
+		fontSize: 30,
+		fontWeight: "700",
 		color: color.text,
 		fontVariant: ["tabular-nums"],
 	},
 	unitText: {
-		fontSize: 16,
-		fontWeight: "700",
+		fontSize: 15,
+		fontWeight: "600",
 		color: color.text2,
 	},
-	statusPill: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 5,
-		paddingVertical: 3,
-		paddingHorizontal: 10,
-		borderRadius: 12,
-		borderWidth: 1,
-		marginTop: 2,
-	},
-	statusDot: {
-		width: 6,
-		height: 6,
-		borderRadius: 3,
-	},
 	statusWord: {
-		fontSize: 11,
+		fontSize: 13,
 		fontWeight: "700",
+	},
+	telemetryBarsRow: {
+		flexDirection: "row",
+		alignItems: "flex-end",
+		gap: 3,
+		marginTop: 4,
+	},
+	telemetryBar: {
+		width: 3,
+		borderRadius: 2,
+		opacity: 0.85,
 	},
 	metaBlock: {
 		gap: space.sm,
