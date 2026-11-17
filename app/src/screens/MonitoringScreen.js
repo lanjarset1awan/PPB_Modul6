@@ -617,21 +617,24 @@ export function MonitoringScreen() {
 								style={({ pressed }) => [
 									styles.pageBox,
 									currentPage <= 1 && styles.pageBoxDisabled,
-									pressed && currentPage > 1 && styles.pressed,
+									pressed && currentPage > 1 && styles.pageBoxPressed,
 								]}
 								onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
 								disabled={currentPage <= 1}
 								accessibilityRole="button"
 								accessibilityLabel="Halaman sebelumnya"
 							>
-								<Text
-									style={[
-										styles.pageArrowText,
-										currentPage <= 1 && styles.pageArrowTextDisabled,
-									]}
-								>
-									{"<"}
-								</Text>
+								{({ pressed }) => (
+									<Text
+										style={[
+											styles.pageArrowText,
+											pressed && currentPage > 1 && styles.pageArrowTextPressed,
+											currentPage <= 1 && styles.pageArrowTextDisabled,
+										]}
+									>
+										{"<"}
+									</Text>
+								)}
 							</Pressable>
 
 							{/* Deretan Tombol Angka Halaman (1, 2, 3, 4...) */}
@@ -643,20 +646,23 @@ export function MonitoringScreen() {
 										style={({ pressed }) => [
 											styles.pageBox,
 											isActive && styles.pageBoxActive,
-											pressed && !isActive && styles.pressed,
+											pressed && !isActive && styles.pageBoxPressed,
 										]}
 										onPress={() => setCurrentPage(pageNum)}
 										accessibilityRole="button"
 										accessibilityLabel={`Halaman ${pageNum}`}
 									>
-										<Text
-											style={[
-												styles.pageNumText,
-												isActive && styles.pageNumTextActive,
-											]}
-										>
-											{pageNum}
-										</Text>
+										{({ pressed }) => (
+											<Text
+												style={[
+													styles.pageNumText,
+													isActive && styles.pageNumTextActive,
+													pressed && !isActive && styles.pageNumTextPressed,
+												]}
+											>
+												{pageNum}
+											</Text>
+										)}
 									</Pressable>
 								);
 							})}
@@ -665,23 +671,25 @@ export function MonitoringScreen() {
 							<Pressable
 								style={({ pressed }) => [
 									styles.pageBox,
-									styles.pageBoxNext,
 									currentPage >= totalPages && styles.pageBoxDisabled,
-									pressed && currentPage < totalPages && styles.pressed,
+									pressed && currentPage < totalPages && styles.pageBoxPressed,
 								]}
 								onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
 								disabled={currentPage >= totalPages}
 								accessibilityRole="button"
 								accessibilityLabel="Halaman berikutnya"
 							>
-								<Text
-									style={[
-										styles.pageArrowNextText,
-										currentPage >= totalPages && styles.pageArrowTextDisabled,
-									]}
-								>
-									{">"}
-								</Text>
+								{({ pressed }) => (
+									<Text
+										style={[
+											styles.pageArrowText,
+											pressed && currentPage < totalPages && styles.pageArrowTextPressed,
+											currentPage >= totalPages && styles.pageArrowTextDisabled,
+										]}
+									>
+										{">"}
+									</Text>
+								)}
 							</Pressable>
 						</View>
 					</View>
@@ -982,9 +990,10 @@ const styles = StyleSheet.create({
 		shadowRadius: 8,
 		elevation: 6,
 	},
-	pageBoxNext: {
+	pageBoxPressed: {
 		borderColor: "#5244F6",
 		backgroundColor: "#F5F3FF",
+		transform: [{ scale: 0.96 }],
 	},
 	pageBoxDisabled: {
 		opacity: 0.35,
@@ -1000,14 +1009,16 @@ const styles = StyleSheet.create({
 		color: "#FFFFFF",
 		fontWeight: "800",
 	},
+	pageNumTextPressed: {
+		color: "#5244F6",
+		fontWeight: "800",
+	},
 	pageArrowText: {
 		fontSize: 16,
 		fontWeight: "700",
 		color: "#475569",
 	},
-	pageArrowNextText: {
-		fontSize: 16,
-		fontWeight: "700",
+	pageArrowTextPressed: {
 		color: "#5244F6",
 	},
 	pageArrowTextDisabled: {
