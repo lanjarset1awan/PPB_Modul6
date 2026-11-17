@@ -125,11 +125,11 @@ export function MonitoringScreen() {
 
 	// Menghasilkan daftar angka halaman untuk deretan tombol
 	const pageNumbers = useMemo(() => {
-		const maxButtons = 5;
+		const maxButtons = 3;
 		if (totalPages <= maxButtons) {
 			return Array.from({ length: totalPages }, (_, i) => i + 1);
 		}
-		let start = Math.max(1, currentPage - 2);
+		let start = Math.max(1, currentPage - 1);
 		let end = Math.min(totalPages, start + maxButtons - 1);
 		if (end - start < maxButtons - 1) {
 			start = Math.max(1, end - maxButtons + 1);
@@ -613,10 +613,10 @@ export function MonitoringScreen() {
 						</Text>
 
 						<View style={styles.paginationButtonsRow}>
-							{/* Tombol Sebelumnya (<) */}
+							{/* Tombol Sebelumnya */}
 							<Pressable
 								style={({ pressed }) => [
-									styles.pageBox,
+									styles.pageTextButton,
 									currentPage <= 1 && styles.pageBoxDisabled,
 									pressed && currentPage > 1 && styles.pageBoxPressed,
 								]}
@@ -628,17 +628,17 @@ export function MonitoringScreen() {
 								{({ pressed }) => (
 									<Text
 										style={[
-											styles.pageArrowText,
-											pressed && currentPage > 1 && styles.pageArrowTextPressed,
-											currentPage <= 1 && styles.pageArrowTextDisabled,
+											styles.pageNavText,
+											pressed && currentPage > 1 && styles.pageNavTextPressed,
+											currentPage <= 1 && styles.pageNavTextDisabled,
 										]}
 									>
-										{"<"}
+										Sebelumnya
 									</Text>
 								)}
 							</Pressable>
 
-							{/* Deretan Tombol Angka Halaman (1, 2, 3, 4...) */}
+							{/* Deretan Tombol Angka Halaman (1, 2, 3...) */}
 							{pageNumbers.map((pageNum) => {
 								const isActive = pageNum === currentPage;
 								return (
@@ -668,10 +668,10 @@ export function MonitoringScreen() {
 								);
 							})}
 
-							{/* Tombol Berikutnya (>) */}
+							{/* Tombol Berikutnya */}
 							<Pressable
 								style={({ pressed }) => [
-									styles.pageBox,
+									styles.pageTextButton,
 									currentPage >= totalPages && styles.pageBoxDisabled,
 									pressed && currentPage < totalPages && styles.pageBoxPressed,
 								]}
@@ -683,12 +683,12 @@ export function MonitoringScreen() {
 								{({ pressed }) => (
 									<Text
 										style={[
-											styles.pageArrowText,
-											pressed && currentPage < totalPages && styles.pageArrowTextPressed,
-											currentPage >= totalPages && styles.pageArrowTextDisabled,
+											styles.pageNavText,
+											pressed && currentPage < totalPages && styles.pageNavTextPressed,
+											currentPage >= totalPages && styles.pageNavTextDisabled,
 										]}
 									>
-										{">"}
+										Berikutnya
 									</Text>
 								)}
 							</Pressable>
@@ -976,12 +976,33 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
-		gap: 8,
+		gap: 6,
+	},
+	pageTextButton: {
+		height: 38,
+		paddingHorizontal: 12,
+		borderRadius: 10,
+		borderWidth: 1.2,
+		borderColor: "#E2E8F0",
+		backgroundColor: "#FFFFFF",
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	pageNavText: {
+		fontSize: 12,
+		fontWeight: "700",
+		color: "#334155",
+	},
+	pageNavTextPressed: {
+		color: color.primary,
+	},
+	pageNavTextDisabled: {
+		color: "#94A3B8",
 	},
 	pageBox: {
-		width: 40,
-		height: 40,
-		borderRadius: 12,
+		width: 36,
+		height: 38,
+		borderRadius: 10,
 		borderWidth: 1.2,
 		borderColor: "#E2E8F0",
 		backgroundColor: "#FFFFFF",
@@ -992,10 +1013,10 @@ const styles = StyleSheet.create({
 		backgroundColor: color.primary,
 		borderColor: color.primary,
 		shadowColor: color.primary,
-		shadowOffset: { width: 0, height: 4 },
-		shadowOpacity: 0.35,
-		shadowRadius: 8,
-		elevation: 6,
+		shadowOffset: { width: 0, height: 3 },
+		shadowOpacity: 0.3,
+		shadowRadius: 6,
+		elevation: 4,
 	},
 	pageBoxPressed: {
 		borderColor: color.primary,
@@ -1008,7 +1029,7 @@ const styles = StyleSheet.create({
 		backgroundColor: "#F8FAFC",
 	},
 	pageNumText: {
-		fontSize: 15,
+		fontSize: 14,
 		fontWeight: "700",
 		color: "#1E293B",
 	},
@@ -1019,16 +1040,5 @@ const styles = StyleSheet.create({
 	pageNumTextPressed: {
 		color: color.primary,
 		fontWeight: "800",
-	},
-	pageArrowText: {
-		fontSize: 16,
-		fontWeight: "700",
-		color: "#475569",
-	},
-	pageArrowTextPressed: {
-		color: color.primary,
-	},
-	pageArrowTextDisabled: {
-		color: "#94A3B8",
 	},
 });
