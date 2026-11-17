@@ -125,11 +125,11 @@ export function MonitoringScreen() {
 
 	// Menghasilkan daftar angka halaman untuk deretan tombol
 	const pageNumbers = useMemo(() => {
-		const maxButtons = 3;
+		const maxButtons = 5;
 		if (totalPages <= maxButtons) {
 			return Array.from({ length: totalPages }, (_, i) => i + 1);
 		}
-		let start = Math.max(1, currentPage - 1);
+		let start = Math.max(1, currentPage - 2);
 		let end = Math.min(totalPages, start + maxButtons - 1);
 		if (end - start < maxButtons - 1) {
 			start = Math.max(1, end - maxButtons + 1);
@@ -245,9 +245,8 @@ export function MonitoringScreen() {
 			: Math.max(0, Math.round((Date.now() - t.getTime()) / 1000));
 		const rel =
 			s < 10 ? "just now" : s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ago`;
-		return `Updated ${rel} · ${readings.length} ${
-			readings.length === 1 ? "reading" : "readings"
-		}`;
+		return `Updated ${rel} · ${readings.length} ${readings.length === 1 ? "reading" : "readings"
+			}`;
 	}, [readings]);
 
 	const tempLabel =
@@ -291,9 +290,8 @@ export function MonitoringScreen() {
 					<View
 						style={styles.orbStage}
 						accessible
-						accessibilityLabel={`Current temperature ${tempLabel} degrees Celsius${
-							proximity ? `, ${proximity.statusWord}` : ""
-						}`}
+						accessibilityLabel={`Current temperature ${tempLabel} degrees Celsius${proximity ? `, ${proximity.statusWord}` : ""
+							}`}
 					>
 						<TempOrb
 							temperature={temperature}
@@ -483,11 +481,10 @@ export function MonitoringScreen() {
 									style={[
 										styles.progressBarFill,
 										{
-											width: `${
-												typeof distance === "number"
-													? Math.min(100, Math.max(5, (distance / 120) * 100))
-													: 0
-											}%`,
+											width: `${typeof distance === "number"
+												? Math.min(100, Math.max(5, (distance / 120) * 100))
+												: 0
+												}%`,
 											backgroundColor: distanceProximity
 												? distanceProximity.color
 												: color.primary,
@@ -613,10 +610,10 @@ export function MonitoringScreen() {
 						</Text>
 
 						<View style={styles.paginationButtonsRow}>
-							{/* Tombol Sebelumnya */}
+							{/* Tombol Sebelumnya (<) */}
 							<Pressable
 								style={({ pressed }) => [
-									styles.pageTextButton,
+									styles.pageBox,
 									currentPage <= 1 && styles.pageBoxDisabled,
 									pressed && currentPage > 1 && styles.pageBoxPressed,
 								]}
@@ -628,17 +625,17 @@ export function MonitoringScreen() {
 								{({ pressed }) => (
 									<Text
 										style={[
-											styles.pageNavText,
-											pressed && currentPage > 1 && styles.pageNavTextPressed,
-											currentPage <= 1 && styles.pageNavTextDisabled,
+											styles.pageArrowText,
+											pressed && currentPage > 1 && styles.pageArrowTextPressed,
+											currentPage <= 1 && styles.pageArrowTextDisabled,
 										]}
 									>
-										Sebelumnya
+										{"<"}
 									</Text>
 								)}
 							</Pressable>
 
-							{/* Deretan Tombol Angka Halaman (1, 2, 3...) */}
+							{/* Deretan Tombol Angka Halaman (1, 2, 3, 4...) */}
 							{pageNumbers.map((pageNum) => {
 								const isActive = pageNum === currentPage;
 								return (
@@ -668,10 +665,10 @@ export function MonitoringScreen() {
 								);
 							})}
 
-							{/* Tombol Berikutnya */}
+							{/* Tombol Berikutnya (>) */}
 							<Pressable
 								style={({ pressed }) => [
-									styles.pageTextButton,
+									styles.pageBox,
 									currentPage >= totalPages && styles.pageBoxDisabled,
 									pressed && currentPage < totalPages && styles.pageBoxPressed,
 								]}
@@ -683,12 +680,12 @@ export function MonitoringScreen() {
 								{({ pressed }) => (
 									<Text
 										style={[
-											styles.pageNavText,
-											pressed && currentPage < totalPages && styles.pageNavTextPressed,
-											currentPage >= totalPages && styles.pageNavTextDisabled,
+											styles.pageArrowText,
+											pressed && currentPage < totalPages && styles.pageArrowTextPressed,
+											currentPage >= totalPages && styles.pageArrowTextDisabled,
 										]}
 									>
-										Berikutnya
+										{">"}
 									</Text>
 								)}
 							</Pressable>
@@ -976,33 +973,12 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
-		gap: 6,
-	},
-	pageTextButton: {
-		height: 38,
-		paddingHorizontal: 12,
-		borderRadius: 10,
-		borderWidth: 1.2,
-		borderColor: "#E2E8F0",
-		backgroundColor: "#FFFFFF",
-		alignItems: "center",
-		justifyContent: "center",
-	},
-	pageNavText: {
-		fontSize: 12,
-		fontWeight: "700",
-		color: "#334155",
-	},
-	pageNavTextPressed: {
-		color: color.primary,
-	},
-	pageNavTextDisabled: {
-		color: "#94A3B8",
+		gap: 8,
 	},
 	pageBox: {
-		width: 36,
-		height: 38,
-		borderRadius: 10,
+		width: 40,
+		height: 40,
+		borderRadius: 12,
 		borderWidth: 1.2,
 		borderColor: "#E2E8F0",
 		backgroundColor: "#FFFFFF",
@@ -1013,10 +989,10 @@ const styles = StyleSheet.create({
 		backgroundColor: color.primary,
 		borderColor: color.primary,
 		shadowColor: color.primary,
-		shadowOffset: { width: 0, height: 3 },
-		shadowOpacity: 0.3,
-		shadowRadius: 6,
-		elevation: 4,
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.35,
+		shadowRadius: 8,
+		elevation: 6,
 	},
 	pageBoxPressed: {
 		borderColor: color.primary,
@@ -1029,7 +1005,7 @@ const styles = StyleSheet.create({
 		backgroundColor: "#F8FAFC",
 	},
 	pageNumText: {
-		fontSize: 14,
+		fontSize: 15,
 		fontWeight: "700",
 		color: "#1E293B",
 	},
@@ -1040,5 +1016,16 @@ const styles = StyleSheet.create({
 	pageNumTextPressed: {
 		color: color.primary,
 		fontWeight: "800",
+	},
+	pageArrowText: {
+		fontSize: 16,
+		fontWeight: "700",
+		color: "#475569",
+	},
+	pageArrowTextPressed: {
+		color: color.primary,
+	},
+	pageArrowTextDisabled: {
+		color: "#94A3B8",
 	},
 });
