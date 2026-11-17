@@ -17,22 +17,22 @@ const TEAM_MEMBERS = [
     name: "Kiara Wulan Turnauli Manalu",
     nim: "21120124140162",
     initials: "KW",
-    avatarBg: "#FDF2F8",
-    avatarColor: "#DB2777",
+    avatarBg: "#EFF6FF",
+    avatarColor: "#2563EB",
   },
   {
     name: "Ade Raihan Hanafi",
     nim: "21120124140118",
     initials: "AR",
-    avatarBg: "#ECFDF5",
-    avatarColor: "#059669",
+    avatarBg: "#EFF6FF",
+    avatarColor: "#2563EB",
   },
   {
     name: "Lanjar Setiawan",
     nim: "21120124120023",
     initials: "LS",
-    avatarBg: "#FFFBEB",
-    avatarColor: "#D97706",
+    avatarBg: "#EFF6FF",
+    avatarColor: "#2563EB",
   },
 ];
 
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.04)",
+    borderColor: "#BFDBFE",
   },
   avatarText: {
     fontWeight: "800",
