@@ -982,16 +982,16 @@ const styles = StyleSheet.create({
 		justifyContent: "center",
 	},
 	pageBoxActive: {
-		backgroundColor: "#2563EB",
-		borderColor: "#2563EB",
-		shadowColor: "#2563EB",
+		backgroundColor: color.primary,
+		borderColor: color.primary,
+		shadowColor: color.primary,
 		shadowOffset: { width: 0, height: 4 },
 		shadowOpacity: 0.35,
 		shadowRadius: 8,
 		elevation: 6,
 	},
 	pageBoxPressed: {
-		borderColor: "#2563EB",
+		borderColor: color.primary,
 		backgroundColor: "#EFF6FF",
 		transform: [{ scale: 0.96 }],
 	},
@@ -1010,7 +1010,7 @@ const styles = StyleSheet.create({
 		fontWeight: "800",
 	},
 	pageNumTextPressed: {
-		color: "#2563EB",
+		color: color.primary,
 		fontWeight: "800",
 	},
 	pageArrowText: {
@@ -1019,7 +1019,7 @@ const styles = StyleSheet.create({
 		color: "#475569",
 	},
 	pageArrowTextPressed: {
-		color: "#2563EB",
+		color: color.primary,
 	},
 	pageArrowTextDisabled: {
 		color: "#94A3B8",

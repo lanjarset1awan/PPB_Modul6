@@ -60,13 +60,13 @@ export default function App() {
               fontFamily: "monospace",
               letterSpacing: -0.5,
             },
-            tabBarActiveTintColor: "#FFFFFF",
-            tabBarInactiveTintColor: "rgba(255, 255, 255, 0.65)",
-            tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
+            tabBarActiveTintColor: color.primary,
+            tabBarInactiveTintColor: color.text2,
+            tabBarLabelStyle: { fontSize: 12, fontWeight: "500" },
             tabBarStyle: {
-              backgroundColor: color.primary,
+              backgroundColor: color.surface,
               borderTopWidth: 1,
-              borderTopColor: "rgba(255, 255, 255, 0.15)",
+              borderTopColor: color.border,
             },
             tabBarHideOnKeyboard: true,
             tabBarIcon: ({ color: iconColor }) => {
