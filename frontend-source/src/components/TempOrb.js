@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { View, Text, StyleSheet } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,15 +14,25 @@ import { tokens } from "../theme/tokens.js";
 
 const { color } = tokens;
 
-// Rentang skala temperatur dial (0°C s/d 50°C, rentang khas sensor IoT lingkungan)
+// Skala rentang temperatur thermometer (0°C s/d 50°C)
 const MIN_TEMP = 0;
 const MAX_TEMP = 50;
-const START_ANGLE = -130; // Derajat sudut awal (kiri bawah)
-const END_ANGLE = 130;    // Derajat sudut akhir (kanan bawah)
-const ANGLE_SPAN = END_ANGLE - START_ANGLE; // 260 derajat total busur
 
-// Skala garis dial (26 garis penanda, BUKAN titik)
-const TICK_COUNT = 26;
+// Tinggi kolom cairan merkuri di dalam tabung kaca
+const MAX_MERCURY_HEIGHT = 125;
+const MIN_MERCURY_HEIGHT = 6;
+
+// Warna skala pengukuran (dari atas/panas ke bawah/dingin sesuai gambar referensi)
+const SCALE_TICKS = [
+  { id: 1, width: 24, color: "#EF4444", label: "50°" }, // Merah tua (Panas)
+  { id: 2, width: 18, color: "#F87171", label: "" },
+  { id: 3, width: 22, color: "#FB923C", label: "35°" }, // Oranye
+  { id: 4, width: 16, color: "#FBBF24", label: "" },    // Kuning
+  { id: 5, width: 20, color: "#A3E635", label: "25°" }, // Hijau muda (Normal)
+  { id: 6, width: 16, color: "#34D399", label: "" },    // Hijau toska
+  { id: 7, width: 24, color: "#38BDF8", label: "10°" }, // Biru langit (Sejuk)
+  { id: 8, width: 18, color: "#2563EB", label: "0°" },  // Biru tua (Dingin)
+];
 
 export function TempOrb({
   temperature = 25,
@@ -30,40 +41,72 @@ export function TempOrb({
   size = 320,
   dimmed = false,
 }) {
-  const needleAngle = useSharedValue(-130);
+  const mercuryHeight = useSharedValue(MIN_MERCURY_HEIGHT);
   const pulseScale = useSharedValue(1);
-  const haloOpacity = useSharedValue(0.2);
+  const sunRotation = useSharedValue(0);
+  const sunPulse = useSharedValue(1);
+  const snowPulse = useSharedValue(1);
   const firstBeat = useRef(true);
 
-  const cx = size / 2;
-  const cy = size / 2;
-  const dialRadius = size * 0.42;
-
-  // Hitung sudut target jarum berdasarkan temperatur aktif
+  // Nilai suhu dibatasi dalam rentang min dan max
   const tempVal = typeof temperature === "number" ? temperature : 25;
   const clampedTemp = Math.min(MAX_TEMP, Math.max(MIN_TEMP, tempVal));
-  const targetAngle = START_ANGLE + (clampedTemp / MAX_TEMP) * ANGLE_SPAN;
 
+  // Menghitung tinggi cairan merkuri secara proporsional
+  const targetHeight =
+    MIN_MERCURY_HEIGHT +
+    ((clampedTemp - MIN_TEMP) / (MAX_TEMP - MIN_TEMP)) *
+      (MAX_MERCURY_HEIGHT - MIN_MERCURY_HEIGHT);
+
+  // Status suhu: Hangat/Panas (>= 27°C) atau Sejuk/Dingin (< 27°C)
+  const isHot = clampedTemp >= 27;
+
+  // Warna dinamis cairan merkuri sesuai suhu aktual
+  const liquidColor = useMemo(() => {
+    if (clampedTemp >= 32) return "#EF4444"; // Merah pekat
+    if (clampedTemp >= 27) return "#F97316"; // Oranye hangat
+    if (clampedTemp >= 22) return "#0284C7"; // Biru cyan segar
+    return "#2563EB"; // Biru sejuk
+  }, [clampedTemp]);
+
+  // Animasi ketinggian cairan merkuri saat suhu berubah
   useEffect(() => {
-    needleAngle.value = withTiming(targetAngle, {
-      duration: 750,
+    mercuryHeight.value = withTiming(targetHeight, {
+      duration: 700,
       easing: Easing.out(Easing.cubic),
     });
-  }, [targetAngle, needleAngle]);
+  }, [targetHeight, mercuryHeight]);
 
-  // Efek denyut halus pada ambient halo (breathing glow)
+  // Animasi rotasi halus dan denyut cahaya matahari (saat panas)
   useEffect(() => {
-    haloOpacity.value = withRepeat(
+    sunRotation.value = withRepeat(
+      withTiming(360, { duration: 12000, easing: Easing.linear }),
+      -1,
+      false
+    );
+    sunPulse.value = withRepeat(
       withSequence(
-        withTiming(0.45, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.18, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+        withTiming(1.08, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.94, { duration: 1200, easing: Easing.inOut(Easing.ease) })
       ),
       -1,
       true
     );
-  }, [haloOpacity]);
+  }, [sunRotation, sunPulse]);
 
-  // Animasi denyut elastis jarum dan getaran haptic saat data baru tiba
+  // Animasi denyut halus kepingan salju (saat sejuk/dingin)
+  useEffect(() => {
+    snowPulse.value = withRepeat(
+      withSequence(
+        withTiming(1.06, { duration: 1400, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.95, { duration: 1400, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, [snowPulse]);
+
+  // Animasi denyut elastis saat data telemetri baru diterima
   useEffect(() => {
     if (firstBeat.current) {
       firstBeat.current = false;
@@ -72,10 +115,9 @@ export function TempOrb({
     if (!beatKey || dimmed) return;
 
     pulseScale.value = withSequence(
-      withTiming(1.05, { duration: 130, easing: Easing.out(Easing.ease) }),
-      withTiming(0.97, { duration: 160 }),
-      withTiming(1.02, { duration: 120 }),
-      withTiming(1.0, { duration: 200 })
+      withTiming(1.04, { duration: 120, easing: Easing.out(Easing.ease) }),
+      withTiming(0.98, { duration: 150 }),
+      withTiming(1.0, { duration: 180 })
     );
 
     try {
@@ -85,233 +127,245 @@ export function TempOrb({
     }
   }, [beatKey, dimmed, pulseScale]);
 
-  const animatedNeedleStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${needleAngle.value}deg` }],
+  const animatedMercuryStyle = useAnimatedStyle(() => ({
+    height: mercuryHeight.value,
   }));
 
-  const animatedDialStyle = useAnimatedStyle(() => ({
+  const animatedThermometerScale = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
   }));
 
-  const animatedHaloStyle = useAnimatedStyle(() => ({
-    opacity: dimmed ? 0.08 : haloOpacity.value,
-    transform: [{ scale: pulseScale.value * 1.04 }],
+  const animatedSunStyle = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: `${sunRotation.value}deg` },
+      { scale: sunPulse.value },
+    ],
   }));
 
-  // Buat 26 garis tick penanda skala melingkar (garis tegas, bukan titik)
-  const ticks = useMemo(() => {
-    const items = [];
-    for (let i = 0; i < TICK_COUNT; i++) {
-      const angle = START_ANGLE + (i / (TICK_COUNT - 1)) * ANGLE_SPAN;
-      const isMajor = i % 5 === 0;
-      const tickValue = Math.round((i / (TICK_COUNT - 1)) * MAX_TEMP);
-      items.push({
-        id: i,
-        angle,
-        isMajor,
-        tickValue,
-      });
-    }
-    return items;
-  }, []);
+  const animatedSnowStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: snowPulse.value }],
+  }));
 
   return (
-    <View style={[styles.container, { width: size, height: size }]} accessible={false}>
-      {/* 1. Ambient Breathing Halo (Aura Cahaya Melingkar) */}
-      <Animated.View
-        style={[
-          styles.ambientHalo,
-          {
-            width: size * 0.88,
-            height: size * 0.88,
-            borderRadius: (size * 0.88) / 2,
-            backgroundColor: tint,
-          },
-          animatedHaloStyle,
-        ]}
-      />
+    <View style={styles.rootContainer} accessible={false}>
+      <Animated.View style={[styles.stageCard, animatedThermometerScale]}>
+        {/* Sisi Kiri: Ikon Cuaca Dinamis (Matahari untuk Panas, Salju untuk Dingin) */}
+        <View style={styles.weatherSideContainer}>
+          {isHot ? (
+            <Animated.View style={[styles.weatherIconWrap, animatedSunStyle]}>
+              <View style={styles.sunGlowRing} />
+              <Ionicons name="sunny" size={44} color="#F59E0B" />
+            </Animated.View>
+          ) : (
+            <Animated.View style={[styles.weatherIconWrap, animatedSnowStyle]}>
+              <View style={styles.snowGlowRing} />
+              <Ionicons name="snow" size={40} color="#0284C7" />
+            </Animated.View>
+          )}
 
-      <Animated.View style={[styles.dialContainer, { width: size, height: size }, animatedDialStyle]}>
-        {/* 2. Bezel Cincin Melingkar Luar (Solid Circular Track) */}
-        <View
-          style={[
-            styles.outerBezelRing,
-            {
-              width: size * 0.84,
-              height: size * 0.84,
-              borderRadius: (size * 0.84) / 2,
-            },
-          ]}
-        />
+          <Text style={[styles.weatherLabel, { color: isHot ? "#D97706" : "#0284C7" }]}>
+            {isHot ? "HANGAT" : "SEJUK"}
+          </Text>
+        </View>
 
-        {/* 3. Cincin Konsentris Halus Dalam */}
-        <View
-          style={[
-            styles.innerConcentricRing,
-            {
-              width: size * 0.72,
-              height: size * 0.72,
-              borderRadius: (size * 0.72) / 2,
-            },
-          ]}
-        />
-
-        {/* 4. Deretan Garis Penanda Skala Tachometer Dial (Ticks) */}
-        {ticks.map((t) => {
-          const rad = (t.angle * Math.PI) / 180;
-          const rPos = dialRadius;
-          const tx = cx + Math.cos(rad) * rPos - (t.isMajor ? 1.5 : 1);
-          const ty = cy + Math.sin(rad) * rPos - (t.isMajor ? 6 : 4);
-
-          return (
-            <View
-              key={t.id}
-              style={[
-                styles.tickBar,
-                t.isMajor ? styles.tickMajor : styles.tickMinor,
-                {
-                  left: tx,
-                  top: ty,
-                  transform: [{ rotate: `${t.angle + 90}deg` }],
-                  backgroundColor: t.isMajor ? tint : "#CBD5E1",
-                },
-              ]}
-            />
-          );
-        })}
-
-        {/* 5. Label Angka Skala Mayor (0, 10, 20, 30, 40, 50°C) */}
-        {ticks
-          .filter((t) => t.isMajor)
-          .map((t) => {
-            const rad = (t.angle * Math.PI) / 180;
-            const rLabel = dialRadius * 0.82;
-            const lx = cx + Math.cos(rad) * rLabel - 14;
-            const ly = cy + Math.sin(rad) * rLabel - 8;
-
-            return (
-              <View key={`lbl-${t.id}`} style={[styles.labelWrap, { left: lx, top: ly }]}>
-                <Text style={[styles.labelText, { color: t.angle <= targetAngle ? tint : "#94A3B8" }]}>
-                  {t.tickValue}°
-                </Text>
-              </View>
-            );
-          })}
-
-        {/* 6. Jarum Indikator Presisi (Sweeping Meter Needle) */}
-        <Animated.View style={[styles.needlePivotWrap, { left: cx, top: cy }, animatedNeedleStyle]}>
-          <View style={[styles.needleBlade, { backgroundColor: tint, height: dialRadius * 0.85 }]}>
-            <View style={[styles.needleGlowingTip, { backgroundColor: tint }]} />
+        {/* Bagian Tengah: Komponen Termometer Tabung & Bohlam */}
+        <View style={styles.thermometerContainer}>
+          {/* 1. Tabung Kaca Vertikal (Stem) */}
+          <View style={styles.glassStem}>
+            {/* Latar Belakang Tabung Dalam */}
+            <View style={styles.glassInnerBore}>
+              {/* Kolom Cairan Merkuri yang Naik Turun secara Dinamis */}
+              <Animated.View
+                style={[
+                  styles.mercuryColumn,
+                  { backgroundColor: liquidColor },
+                  animatedMercuryStyle,
+                ]}
+              />
+            </View>
           </View>
-        </Animated.View>
 
-        {/* 7. Tutup Pusat Sumbu Jarum (Central Axis Cap) */}
-        <View style={[styles.centerAxisCap, { left: cx - 11, top: cy - 11, borderColor: tint }]} />
+          {/* 2. Bohlam Melingkar Bawah (Bulb) */}
+          <View style={styles.glassBulb}>
+            {/* Cairan di dalam Bohlam */}
+            <View style={[styles.bulbLiquid, { backgroundColor: liquidColor }]}>
+              {/* Pantulan Cahaya Lengkung Putih (Crescent Reflection) */}
+              <View style={styles.crescentReflection} />
+            </View>
+          </View>
+        </View>
+
+        {/* Sisi Kanan: Garis Skala Pengukuran Warna-Warni (Ticks) */}
+        <View style={styles.scaleSideContainer}>
+          {SCALE_TICKS.map((t) => (
+            <View key={t.id} style={styles.tickRow}>
+              <View
+                style={[
+                  styles.tickBar,
+                  {
+                    width: t.width,
+                    backgroundColor: t.color,
+                  },
+                ]}
+              />
+              {t.label ? (
+                <Text style={[styles.tickLabelText, { color: t.color }]}>
+                  {t.label}
+                </Text>
+              ) : null}
+            </View>
+          ))}
+        </View>
       </Animated.View>
     </View>
   );
 }
 
-// Alias untuk fleksibilitas kompatibilitas
+// Alias untuk fleksibilitas pemanggilan
 export const LiveSensorGauge = TempOrb;
 
 const styles = StyleSheet.create({
-  container: {
+  rootContainer: {
     alignItems: "center",
     justifyContent: "center",
-    position: "relative",
+    paddingVertical: 8,
   },
-  ambientHalo: {
-    position: "absolute",
-    alignSelf: "center",
-  },
-  dialContainer: {
-    position: "relative",
+  stageCard: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-  },
-  outerBezelRing: {
-    position: "absolute",
-    borderWidth: 2,
-    borderColor: "#E2E8F0",
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
-    elevation: 4,
-  },
-  innerConcentricRing: {
-    position: "absolute",
+    paddingHorizontal: 24,
+    paddingVertical: 18,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1.5,
-    borderColor: "#F1F5F9",
-    borderStyle: "dashed",
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
+    gap: 22,
   },
-  tickBar: {
-    position: "absolute",
-    borderRadius: 2,
-  },
-  tickMajor: {
-    width: 3,
-    height: 12,
-  },
-  tickMinor: {
-    width: 1.5,
-    height: 7,
-  },
-  labelWrap: {
-    position: "absolute",
-    width: 28,
-    height: 16,
+  weatherSideContainer: {
+    width: 68,
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
   },
-  labelText: {
-    fontSize: 10,
-    fontWeight: "700",
-    fontVariant: ["tabular-nums"],
+  weatherIconWrap: {
+    width: 54,
+    height: 54,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
   },
-  needlePivotWrap: {
+  sunGlowRing: {
     position: "absolute",
-    width: 0,
-    height: 0,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(245, 158, 11, 0.16)",
+  },
+  snowGlowRing: {
+    position: "absolute",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(2, 132, 199, 0.16)",
+  },
+  weatherLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textAlign: "center",
+  },
+  thermometerContainer: {
     alignItems: "center",
     justifyContent: "flex-end",
-    zIndex: 10,
+    position: "relative",
+    height: 200,
   },
-  needleBlade: {
-    position: "absolute",
-    bottom: 0,
-    width: 3,
-    borderRadius: 2,
-    alignItems: "center",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  needleGlowingTip: {
-    position: "absolute",
-    top: -6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: "#FFFFFF",
-  },
-  centerAxisCap: {
-    position: "absolute",
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+  glassStem: {
+    width: 32,
+    height: 144,
     backgroundColor: "#FFFFFF",
-    borderWidth: 3,
-    zIndex: 15,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 6,
+    borderWidth: 3.5,
+    borderColor: "#1E293B",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomWidth: 0,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    zIndex: 2,
+  },
+  glassInnerBore: {
+    width: 18,
+    height: "100%",
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    overflow: "hidden",
+    borderTopLeftRadius: 9,
+    borderTopRightRadius: 9,
+  },
+  mercuryColumn: {
+    width: "100%",
+    borderTopLeftRadius: 9,
+    borderTopRightRadius: 9,
+  },
+  glassBulb: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 3.5,
+    borderColor: "#1E293B",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -16,
+    zIndex: 3,
+  },
+  bulbLiquid: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  crescentReflection: {
+    position: "absolute",
+    bottom: 8,
+    left: 8,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: "#FFFFFF",
+    transform: [{ rotate: "25deg" }],
+  },
+  scaleSideContainer: {
+    width: 68,
+    alignItems: "flex-start",
+    justifyContent: "center",
+    gap: 10,
+    paddingTop: 4,
+    paddingBottom: 28,
+  },
+  tickRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  tickBar: {
+    height: 4,
+    borderRadius: 2,
+  },
+  tickLabelText: {
+    fontSize: 10,
+    fontWeight: "700",
   },
 });

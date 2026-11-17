@@ -295,69 +295,67 @@ export function MonitoringScreen() {
 							proximity ? `, ${proximity.statusWord}` : ""
 						}`}
 					>
-						<View style={styles.orbWrap}>
-							<TempOrb
-								temperature={temperature}
-								tint={proximity ? proximity.statusColor : color.primary}
-								beatKey={beatKey}
-								dimmed={
-									connectionState !== "connected" &&
-									connectionState !== "reconnecting"
-								}
-								size={320}
-							/>
-							<View style={styles.orbNumber} pointerEvents="none">
-								<View style={styles.centerPodCircle}>
-									<View style={styles.orbNumberRow}>
-										<Text
-											style={[
-												styles.temperatureText,
-												{ color: proximity ? proximity.statusColor : color.text },
-											]}
-											selectable
-										>
-											{tempLabel}
-										</Text>
-										<Text
-											style={[
-												styles.unitText,
-												{
-													color: proximity ? proximity.statusColor : color.text2,
-												},
-											]}
-										>
-											°C
-										</Text>
-									</View>
-									{proximity ? (
-										<Text
-											style={[
-												styles.statusWord,
-												{ color: proximity.statusColor },
-											]}
-										>
-											{proximity.statusWord}
-										</Text>
-									) : null}
+						<TempOrb
+							temperature={temperature}
+							tint={proximity ? proximity.statusColor : color.primary}
+							beatKey={beatKey}
+							dimmed={
+								connectionState !== "connected" &&
+								connectionState !== "reconnecting"
+							}
+							size={320}
+						/>
 
-									<View style={styles.telemetryBarsRow}>
-										{[8, 14, 10, 16, 7].map((h, bIdx) => (
-											<View
-												key={bIdx}
-												style={[
-													styles.telemetryBar,
-													{
-														height: h,
-														backgroundColor: proximity
-															? proximity.statusColor
-															: color.primary,
-													},
-												]}
-											/>
-										))}
-									</View>
-								</View>
+						{/* Kartu Indikator Nilai Suhu & Status */}
+						<View style={styles.temperatureDisplayCard}>
+							<View style={styles.orbNumberRow}>
+								<Text
+									style={[
+										styles.temperatureText,
+										{ color: proximity ? proximity.statusColor : color.text },
+									]}
+									selectable
+								>
+									{tempLabel}
+								</Text>
+								<Text
+									style={[
+										styles.unitText,
+										{
+											color: proximity ? proximity.statusColor : color.text2,
+										},
+									]}
+								>
+									°C
+								</Text>
 							</View>
+
+							{proximity ? (
+								<View
+									style={[
+										styles.statusPill,
+										{
+											backgroundColor: proximity.statusColor + "14",
+											borderColor: proximity.statusColor + "40",
+										},
+									]}
+								>
+									<View
+										style={[
+											styles.statusDot,
+											{ backgroundColor: proximity.statusColor },
+										]}
+									/>
+									<Text
+										style={[
+											styles.statusWord,
+											{ color: proximity.statusColor },
+										]}
+									>
+										{proximity.statusWord}
+									</Text>
+								</View>
+							) : null}
 						</View>
 					</View>
 
@@ -757,41 +755,27 @@ const styles = StyleSheet.create({
 	},
 	orbStage: {
 		alignItems: "center",
+		justifyContent: "center",
 		gap: space.sm,
-		minHeight: 320,
+		paddingVertical: space.xs,
 	},
-	orbWrap: {
-		width: 320,
-		height: 320,
-		alignSelf: "center",
-		position: "relative",
-	},
-	orbNumber: {
-		position: "absolute",
-		top: 0,
-		left: 0,
-		right: 0,
-		bottom: 0,
-		flexDirection: "column",
+	temperatureDisplayCard: {
+		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
-		zIndex: 20,
-	},
-	centerPodCircle: {
-		width: 140,
-		height: 140,
-		borderRadius: 70,
 		backgroundColor: "#FFFFFF",
-		alignItems: "center",
-		justifyContent: "center",
+		paddingVertical: 10,
+		paddingHorizontal: 22,
+		borderRadius: 18,
 		borderWidth: 1.5,
 		borderColor: "#E2E8F0",
 		shadowColor: "#0F172A",
-		shadowOffset: { width: 0, height: 4 },
-		shadowOpacity: 0.08,
-		shadowRadius: 10,
-		elevation: 4,
-		gap: 2,
+		shadowOffset: { width: 0, height: 3 },
+		shadowOpacity: 0.06,
+		shadowRadius: 8,
+		elevation: 3,
+		gap: 14,
+		marginTop: 6,
 	},
 	orbNumberRow: {
 		flexDirection: "row",
@@ -799,30 +783,34 @@ const styles = StyleSheet.create({
 		gap: 6,
 	},
 	temperatureText: {
-		fontSize: 30,
-		fontWeight: "700",
+		fontSize: 32,
+		fontWeight: "800",
 		color: color.text,
 		fontVariant: ["tabular-nums"],
 	},
 	unitText: {
-		fontSize: 15,
-		fontWeight: "600",
+		fontSize: 16,
+		fontWeight: "700",
 		color: color.text2,
 	},
-	statusWord: {
-		fontSize: 13,
-		fontWeight: "700",
-	},
-	telemetryBarsRow: {
+	statusPill: {
 		flexDirection: "row",
-		alignItems: "flex-end",
-		gap: 3,
-		marginTop: 4,
+		alignItems: "center",
+		gap: 6,
+		paddingVertical: 5,
+		paddingHorizontal: 12,
+		borderRadius: 14,
+		borderWidth: 1,
 	},
-	telemetryBar: {
-		width: 3,
-		borderRadius: 2,
-		opacity: 0.85,
+	statusDot: {
+		width: 7,
+		height: 7,
+		borderRadius: 3.5,
+	},
+	statusWord: {
+		fontSize: 12,
+		fontWeight: "800",
+		letterSpacing: 0.5,
 	},
 	metaBlock: {
 		gap: space.sm,
