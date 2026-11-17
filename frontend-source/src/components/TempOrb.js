@@ -1,41 +1,22 @@
-import { useEffect, useMemo, useRef } from "react";
-import { View, StyleSheet } from "react-native";
-import {
-  Atlas,
-  Canvas,
-  FilterMode,
-  Group,
-  MipmapMode,
-  Skia,
-  rect,
-  useRSXformBuffer,
-  usePictureAsTexture,
-} from "react-native-skia";
-import { useIsFocused } from "@react-navigation/native";
+import { useEffect, useRef } from "react";
+import { View, StyleSheet, Dimensions } from "react-native";
 import Animated, {
-  useDerivedValue,
-  useFrameCallback,
-  useReducedMotion,
   useSharedValue,
-  withSequence,
+  useAnimatedStyle,
   withTiming,
   withRepeat,
+  withSequence,
   Easing,
+  interpolate,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { tokens } from "../theme/tokens.js";
 
 const { color } = tokens;
+const SEAL_IMG = require("../../assets/kyuubi-seal.png");
 
-// Total partikel dial & radar (Bukan sphere, melainkan 2D Radar Telemetry Dial Gauge)
-const OUTER_TICKS = 60; // 60 titik lingkar skala luar (dial gauge scale)
-const INNER_RING = 40;  // 40 titik ring radar konsentris tengah
-const RADAR_SWEEP = 18; // 18 titik ekor berkas radar scanner
-const CARDINAL_BEACONS = 4; // 4 beacon kuadran (N, E, S, W)
-const TOTAL_DOTS = OUTER_TICKS + INNER_RING + RADAR_SWEEP + CARDINAL_BEACONS; // 122 partikel
-
-const TEX = 32;
-const BASE_SWEEP_SPEED = 1.8; // Kecepatan rotasi radar sweep (rad/detik)
+// 8 Chakra Beacons mengelilingi 8 titik segel Kyuubi (Hakke no Fūin Shiki)
+const CHAKRA_ORBS = Array.from({ length: 8 });
 
 export function TempOrb({
   tint = color.primary,
@@ -43,175 +24,205 @@ export function TempOrb({
   size = 320,
   dimmed = false,
 }) {
-  const reduceMotion = useReducedMotion();
-  const focused = useIsFocused();
-  const sweepAngle = useSharedValue(0);
-  const ringRotate = useSharedValue(0);
+  const rotation = useSharedValue(0);
+  const reverseRot = useSharedValue(0);
   const pulseScale = useSharedValue(1);
-  const intensity = useSharedValue(0);
-  const dimSV = useSharedValue(dimmed ? 1 : 0);
+  const auraGlow = useSharedValue(0.4);
+  const chakraWave = useSharedValue(0.8);
   const firstBeat = useRef(true);
 
-  const cx = size / 2;
-  const cy = size / 2;
-  const R_OUTER = size * 0.44; // Skala luar dial (~140px)
-  const R_INNER = size * 0.36; // Ring konsentris radar (~115px)
-
-  // Tekstur titik lingkaran Skia dengan anti-aliasing tinggi
-  const dotPicture = useMemo(() => {
-    try {
-      const recorder = Skia.PictureRecorder();
-      const canvas = recorder.beginRecording(rect(0, 0, TEX, TEX));
-      const paint = Skia.Paint();
-      paint.setAntiAlias(true);
-      paint.setColor(Skia.Color("white"));
-      canvas.drawCircle(TEX / 2, TEX / 2, TEX / 2 - 1, paint);
-      return recorder.finishRecordingAsPicture();
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const dotImg = usePictureAsTexture(dotPicture, { width: TEX, height: TEX });
-
-  const sprites = useMemo(
-    () => new Array(TOTAL_DOTS).fill(0).map(() => rect(0, 0, TEX, TEX)),
-    []
-  );
-
-  // Buffer transformasi koordinat 2D Radar Telemetry Dial
-  const transforms = useRSXformBuffer(TOTAL_DOTS, (val, i) => {
-    "worklet";
-    const sweep = sweepAngle.value;
-    const rot = ringRotate.value;
-    const swell = pulseScale.value;
-
-    // 1. Skala Luar Dial (Outer Gauge Dial Ticks) -> i: 0 s/d 59
-    if (i < OUTER_TICKS) {
-      const theta = (i / OUTER_TICKS) * 2 * Math.PI + rot * 0.15;
-      const isMajor = i % 5 === 0;
-      const r = R_OUTER * (isMajor ? swell * 1.02 : swell);
-      const x = cx + Math.cos(theta) * r;
-      const y = cy + Math.sin(theta) * r;
-      const sc = isMajor ? 0.24 : 0.14;
-      val.set(sc, 0, x - (TEX / 2) * sc, y - (TEX / 2) * sc);
-      return;
-    }
-
-    // 2. Ring Konsentris Radar Tengah -> i: 60 s/d 99
-    if (i < OUTER_TICKS + INNER_RING) {
-      const k = i - OUTER_TICKS;
-      const theta = (k / INNER_RING) * 2 * Math.PI - rot * 0.35;
-      const r = R_INNER * swell;
-      const x = cx + Math.cos(theta) * r;
-      const y = cy + Math.sin(theta) * r;
-      const sc = k % 4 === 0 ? 0.20 : 0.12;
-      val.set(sc, 0, x - (TEX / 2) * sc, y - (TEX / 2) * sc);
-      return;
-    }
-
-    // 3. Berkas Sapuan Radar (Radar Sweep Scanner Beam) -> i: 100 s/d 117
-    if (i < OUTER_TICKS + INNER_RING + RADAR_SWEEP) {
-      const k = i - (OUTER_TICKS + INNER_RING);
-      // Ekor berkas menyusut secara bertingkat di belakang sweepAngle
-      const trailAngle = sweep - (k * 0.04);
-      const trailRadius = (R_INNER + (R_OUTER - R_INNER) * (k / RADAR_SWEEP)) * swell;
-      const x = cx + Math.cos(trailAngle) * trailRadius;
-      const y = cy + Math.sin(trailAngle) * trailRadius;
-      const sc = 0.28 * (1 - (k / RADAR_SWEEP) * 0.65);
-      val.set(sc, 0, x - (TEX / 2) * sc, y - (TEX / 2) * sc);
-      return;
-    }
-
-    // 4. Empat Beacon Kuadran Utama (North, East, South, West) -> i: 118 s/d 121
-    const bIdx = i - (OUTER_TICKS + INNER_RING + RADAR_SWEEP);
-    const bTheta = (bIdx / CARDINAL_BEACONS) * 2 * Math.PI + rot * 0.05;
-    const bR = (R_OUTER + 12) * swell;
-    const bx = cx + Math.cos(bTheta) * bR;
-    const by = cy + Math.sin(bTheta) * bR;
-    const bSc = 0.26 + 0.08 * Math.sin(sweep * 3 + bIdx);
-    val.set(bSc, 0, bx - (TEX / 2) * bSc, by - (TEX / 2) * bSc);
-  });
+  const sealSize = size * 0.92; // Ukuran segel Kyuubi (~295px)
+  const centerRadius = (size * 0.45);
 
   useEffect(() => {
-    dimSV.set(withTiming(dimmed ? 1 : 0, { duration: 400 }));
-  }, [dimmed, dimSV]);
+    // 1. Rotasi berputar lembut segel Kyuubi searah jarum jam (16 detik per putaran)
+    rotation.value = withRepeat(
+      withTiming(360, { duration: 16000, easing: Easing.linear }),
+      -1,
+      false
+    );
 
-  // Efek denyut gelombang saat data sensor baru tiba (beat)
+    // 2. Rotasi berlawanan partikel chakra luar (12 detik per putaran)
+    reverseRot.value = withRepeat(
+      withTiming(-360, { duration: 12000, easing: Easing.linear }),
+      -1,
+      false
+    );
+
+    // 3. Denyut gelombang aura chakra Kurama (breathing aura)
+    auraGlow.value = withRepeat(
+      withSequence(
+        withTiming(0.85, { duration: 1400, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.35, { duration: 1400, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+
+    chakraWave.value = withRepeat(
+      withSequence(
+        withTiming(1.12, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.92, { duration: 1800, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, [rotation, reverseRot, auraGlow, chakraWave]);
+
+  // Efek lonjakan chakra (shockwave swell) saat data sensor baru diterima
   useEffect(() => {
     if (firstBeat.current) {
       firstBeat.current = false;
       return;
     }
-    if (!beatKey || dimmed || reduceMotion) return;
-    intensity.set(0);
-    pulseScale.set(
-      withSequence(
-        withTiming(1.08, { duration: 150, easing: Easing.out(Easing.ease) }),
-        withTiming(0.96, { duration: 180 }),
-        withTiming(1.03, { duration: 140 }),
-        withTiming(1.0, { duration: 250 })
-      )
+    if (!beatKey || dimmed) return;
+
+    pulseScale.value = withSequence(
+      withTiming(1.14, { duration: 160, easing: Easing.out(Easing.back(1.5)) }),
+      withTiming(0.94, { duration: 180 }),
+      withTiming(1.05, { duration: 140 }),
+      withTiming(1.0, { duration: 250 })
     );
+
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {
       // Haptics fallback
     }
-  }, [beatKey, dimmed, reduceMotion, pulseScale, intensity]);
+  }, [beatKey, dimmed, pulseScale]);
 
-  // Frame Loop Skia/Reanimated: Menggerakkan sapuan radar dan ring dial
-  const frame = useFrameCallback((info) => {
-    "worklet";
-    const dt = Math.min(0.05, (info.timeSincePreviousFrame ?? 16) / 1000);
-    sweepAngle.value += dt * BASE_SWEEP_SPEED;
-    ringRotate.value += dt * 0.45;
-  });
+  // Gaya animasi untuk rotasi dan denyut segel
+  const animatedSealStyle = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: `${rotation.value}deg` },
+      { scale: pulseScale.value },
+    ],
+    opacity: dimmed ? 0.45 : 0.95,
+  }));
 
-  useEffect(() => {
-    frame.setActive(focused && !reduceMotion && !dimmed);
-  }, [focused, reduceMotion, dimmed, frame]);
+  // Gaya animasi aura chakra di belakang segel
+  const animatedAuraStyle = useAnimatedStyle(() => ({
+    opacity: dimmed ? 0.15 : auraGlow.value,
+    transform: [{ scale: chakraWave.value * pulseScale.value }],
+  }));
 
-  const groupOpacity = useDerivedValue(() => 0.85 * (1 - 0.5 * dimSV.value));
-
-  // Pewarnaan partikel dial & radar
-  const colors = useMemo(() => {
-    return new Array(TOTAL_DOTS).fill(0).map((_, i) => {
-      // Skala dial luar: mengikuti status tint
-      if (i < OUTER_TICKS) {
-        return i % 5 === 0 ? tint : "rgba(100, 116, 139, 0.45)";
-      }
-      // Ring tengah: warna aksen cyan/sky
-      if (i < OUTER_TICKS + INNER_RING) {
-        return "rgba(56, 189, 248, 0.6)";
-      }
-      // Berkas sapuan radar: warna terang bercahaya
-      if (i < OUTER_TICKS + INNER_RING + RADAR_SWEEP) {
-        return tint;
-      }
-      // Beacon kuadran luar: cyan cerah
-      return "#0284C7";
-    });
-  }, [tint]);
+  // Gaya animasi orbs chakra yang berputar berlawanan
+  const animatedReverseRing = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${reverseRot.value}deg` }],
+  }));
 
   return (
-    <View style={{ width: size, height: size }} accessible={false}>
-      {/* Skia Canvas Rendering untuk Radar Telemetry Dial Gauge */}
-      <Canvas style={{ width: size, height: size }}>
-        <Group opacity={groupOpacity}>
-          <Atlas
-            image={dotImg}
-            sprites={sprites}
-            transforms={transforms}
-            colors={colors}
-            colorBlendMode="modulate"
-            sampling={{ filter: FilterMode.Linear, mipmap: MipmapMode.Linear }}
-          />
-        </Group>
-      </Canvas>
+    <View style={[styles.container, { width: size, height: size }]} accessible={false}>
+      {/* 1. Lingkaran Cahaya Aura Chakra Kyuubi (Belakang) */}
+      <Animated.View
+        style={[
+          styles.chakraAuraRing,
+          {
+            width: size * 0.78,
+            height: size * 0.78,
+            borderRadius: (size * 0.78) / 2,
+            borderColor: tint,
+            backgroundColor: tint,
+          },
+          animatedAuraStyle,
+        ]}
+      />
+
+      {/* 2. Cincin Gelombang Energi Sekunder */}
+      <Animated.View
+        style={[
+          styles.chakraPulseWave,
+          {
+            width: size * 0.88,
+            height: size * 0.88,
+            borderRadius: (size * 0.88) / 2,
+            borderColor: tint,
+          },
+          animatedAuraStyle,
+        ]}
+      />
+
+      {/* 3. Delapan Partikel Chakra Melingkar di Ujung Segel */}
+      <Animated.View
+        style={[
+          styles.orbitRing,
+          { width: size, height: size },
+          animatedReverseRing,
+        ]}
+      >
+        {CHAKRA_ORBS.map((_, i) => {
+          const angle = (i * 2 * Math.PI) / 8;
+          const orbX = Math.cos(angle) * centerRadius;
+          const orbY = Math.sin(angle) * centerRadius;
+          return (
+            <View
+              key={i}
+              style={[
+                styles.chakraOrb,
+                {
+                  backgroundColor: tint,
+                  transform: [{ translateX: orbX }, { translateY: orbY }],
+                },
+              ]}
+            />
+          );
+        })}
+      </Animated.View>
+
+      {/* 4. Gambar Segel Kyuubi (Hakke no Fūin Shiki) Berputar */}
+      <Animated.Image
+        source={SEAL_IMG}
+        style={[
+          styles.sealImage,
+          {
+            width: sealSize,
+            height: sealSize,
+            tintColor: tint, // Mewarnai garis segel sesuai status suhu/chakra
+          },
+          animatedSealStyle,
+        ]}
+        resizeMode="contain"
+      />
     </View>
   );
 }
 
-// Alias untuk fleksibilitas impor
+const styles = StyleSheet.create({
+  container: {
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  chakraAuraRing: {
+    position: "absolute",
+    opacity: 0.12,
+    borderWidth: 2,
+  },
+  chakraPulseWave: {
+    position: "absolute",
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    opacity: 0.25,
+  },
+  orbitRing: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chakraOrb: {
+    position: "absolute",
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    opacity: 0.7,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sealImage: {
+    position: "absolute",
+  },
+});
+
 export const LiveSensorGauge = TempOrb;
